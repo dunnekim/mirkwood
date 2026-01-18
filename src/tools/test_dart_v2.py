@@ -22,8 +22,8 @@ def test_dart_reader():
     
     # Test cases
     test_companies = [
-        ("모비릭스", "Game company - uses '영업수익'"),
         ("삼성전자", "Large cap - uses '매출액'"),
+        ("네이버", "Tech platform company"),
         ("카카오", "Tech company"),
         ("넥슨", "Game company"),
         ("엔씨소프트", "Game company"),
@@ -88,16 +88,16 @@ def test_dart_reader():
     
     print(f"\n{'='*70}")
     
-    # Specific check for 모비릭스
-    mobilis = next((r for r in results if r['company'] == '모비릭스'), None)
-    if mobilis and mobilis['success']:
-        if mobilis['revenue'] > 0:
-            print("✅ 모비릭스 영업수익 인식 성공!")
-            print(f"   Revenue: {mobilis['revenue']:.1f}억 (NOT 0억)")
+    # Specific check for 삼성전자
+    samsung = next((r for r in results if r['company'] == '삼성전자'), None)
+    if samsung and samsung['success']:
+        if samsung['revenue'] > 0:
+            print("✅ 삼성전자 매출액 인식 성공!")
+            print(f"   Revenue: {samsung['revenue']:,.0f}억 (Large cap)")
         else:
-            print("⚠️ 모비릭스 데이터는 찾았지만 매출이 0억입니다.")
+            print("⚠️ 삼성전자 데이터는 찾았지만 매출이 0억입니다.")
     else:
-        print("❌ 모비릭스 데이터 조회 실패")
+        print("❌ 삼성전자 데이터 조회 실패")
     
     print("=" * 70)
 

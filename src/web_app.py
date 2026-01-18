@@ -22,13 +22,36 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
-# Import MIRKWOOD components
+# Import MIRKWOOD components (lazy loading for API dependencies)
 try:
     from src.engines.orchestrator import WoodOrchestrator
-    from src.tools.smart_ingestor import SmartFinancialIngestor
 except ImportError as e:
     st.error(f"⚠️ Import Error: {e}")
     st.stop()
+
+# Check API keys before importing SmartIngestor
+def check_api_keys():
+    """Check if required API keys are set"""
+    missing_keys = []
+    
+    if not os.getenv("OPENAI_API_KEY"):
+        missing_keys.append("OPENAI_API_KEY")
+    
+    if not os.getenv("DART_API_KEY"):
+        missing_keys.append("DART_API_KEY")
+    
+    return missing_keys
+
+# Lazy import function for SmartIngestor
+def get_smart_ingestor():
+    """Lazy load SmartIngestor only when needed"""
+    try:
+        from src.tools.smart_ingestor import SmartFinancialIngestor
+        return SmartFinancialIngestor()
+    except Exception as e:
+        st.error(f"Failed to initialize SmartIngestor: {e}")
+        st.info("Please set OPENAI_API_KEY and DART_API_KEY in Streamlit secrets")
+        return None
 
 # ==============================================================================
 # 🔒 ACCESS CONTROL (Mellon Gate)
@@ -155,14 +178,37 @@ with tab1:
         
         company_name = st.text_input(
             "Company Name",
-            placeholder="e.g., 모비릭스, 삼성전자",
+            placeholder="e.g., 삼성전자, 네이버",
             help="Exact legal name for best results"
         )
         
         if st.button("🔎 Search Data", use_container_width=True):
             if company_name:
+                # Check API keys first
+                missing_keys = check_api_keys()
+                
+                if missing_keys:
+                    st.error(f"❌ Missing API Keys: {', '.join(missing_keys)}")
+                    st.info("""
+                    **To fix this:**
+                    1. Go to Streamlit Cloud dashboard
+                    2. Click 'Manage app'
+                    3. Go to 'Secrets' section
+                    4. Add:
+                    ```
+                    OPENAI_API_KEY = "your_key"
+                    DART_API_KEY = "your_key"
+                    ```
+                    """)
+                    st.stop()
+                
                 with st.spinner("Searching DART and Web..."):
-                    ingestor = SmartFinancialIngestor()
+                    ingestor = get_smart_ingestor()
+                    
+                    if ingestor is None:
+                        st.error("Failed to initialize data collector")
+                        st.stop()
+                    
                     result = ingestor.ingest(company_name)
                     
                     st.session_state['collected_data'] = result

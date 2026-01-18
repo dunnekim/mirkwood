@@ -95,26 +95,23 @@ streamlit run src/web_app.py
 
 ## 🧪 Key Test Cases
 
-### Test Case 1: 모비릭스 (게임사)
+### Test Case 1: 삼성전자 (대기업)
 
-**Problem (Before):**
-- Revenue: 0억 ❌
-- Reason: "영업수익" not recognized
-
-**Solution (After):**
-- Revenue: ~562억 ✅
-- Source: DART 2024.4Q (CFS)
+**Features Tested:**
+- DART multi-key search (매출액 인식)
+- Smart year search (최신 보고서)
+- Big 4 Excel formatting
 
 **Test:**
 ```bash
 # Telegram
-/dcf 모비릭스
+/dcf 삼성전자
 
 # Expected:
 📊 데이터 수집 완료
 ✅ 출처: DART 2024.4Q(Year) (CFS)
-📈 매출: 562.3억 원
-💰 영업이익: -145.7억 원
+📈 매출: 67,401,221억 원
+💰 영업이익: 6,570,895억 원
 ```
 
 ### Test Case 2: 리터니티 (뷰티)

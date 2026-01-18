@@ -17,6 +17,7 @@ import numpy as np
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
 from openpyxl.utils import get_column_letter
+from .wood.wacc_logic import KoreanWACCCalculator
 
 
 class WoodOrchestrator:
@@ -47,6 +48,16 @@ class WoodOrchestrator:
         # Default assumptions (can be overridden by scenario)
         self.cost_of_debt = 0.045  # 4.5% default cost of debt
         self.exit_multiple = 8.0   # 8x EBITDA exit multiple
+        
+        # Initialize Korean WACC Calculator with live beta option
+        use_live_beta = self.config.get('use_live_beta', False)
+        self.korean_wacc = KoreanWACCCalculator(
+            tax_rate=self.tax_rate,
+            use_live_beta=use_live_beta
+        )
+        
+        if use_live_beta:
+            print("   🔬 Live Beta Mode: Enabled (Calculating betas from market data)")
 
     def _load_config(self):
         with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -74,16 +85,32 @@ class WoodOrchestrator:
         relevered_beta = unlevered_beta * (1 + (1 - tax_rate) * target_debt_ratio)
         return relevered_beta
     
-    def _calculate_wacc(self, scenario_name, scenario_params):
+    def _calculate_wacc(
+        self, 
+        scenario_name, 
+        scenario_params,
+        target_info: Dict = None
+    ):
         """
-        Calculate WACC using CAPM
+        Calculate WACC using Korean Standard (KICPA)
+        
+        [Korean Enhancement]
+        - Size Risk Premium (SRP) based on quintile table
+        - Listed vs Unlisted distinction
+        - KICPA recommended MRP (8.0%)
         
         Steps:
         1. Get peer group betas and unlever them
         2. Calculate average unlevered beta
         3. Re-lever to target capital structure
-        4. Apply CAPM: Cost of Equity = Rf + β × MRP
+        4. Apply CAPM + SRP (Korean specific)
         5. Calculate WACC: Re × (E/V) + Rd × (1-Tax) × (D/V)
+        
+        Args:
+            scenario_name: Scenario name
+            scenario_params: Scenario parameters
+            target_info: Optional target company info
+                {"is_listed": bool, "size_mil_krw": float}
         
         Returns:
             dict with WACC components
@@ -94,43 +121,57 @@ class WoodOrchestrator:
         avg_de_ratio = np.mean([peer['debt_equity_ratio'] for peer in peer_group])
         target_debt_ratio = avg_de_ratio  # Use peer average as target
         
-        # Step 1 & 2: Unlever peer betas and average
-        unlevered_betas = []
+        # Prepare peer data for Korean WACC Calculator
+        peers_formatted = []
+        peer_tickers = []
+        
         for peer in peer_group:
-            levered_beta = peer['beta']
-            peer_de_ratio = peer['debt_equity_ratio']
-            u_beta = self._calculate_unlevered_beta(levered_beta, peer_de_ratio, self.tax_rate)
-            unlevered_betas.append(u_beta)
+            peers_formatted.append({
+                'beta': peer.get('beta', 1.0),  # Fallback beta (if live fails)
+                'debt_equity_ratio': peer['debt_equity_ratio'],
+                'tax_rate': peer.get('tax_rate', self.tax_rate)
+            })
+            
+            # Collect tickers for live beta calculation
+            ticker = peer.get('ticker')
+            peer_tickers.append(ticker if ticker else None)
         
-        avg_unlevered_beta = np.mean(unlevered_betas)
+        # Default target info (unlisted small company if not provided)
+        if target_info is None:
+            target_info = {
+                'is_listed': False,
+                'size_mil_krw': 15000  # 150억 순자산 (5분위)
+            }
         
-        # Step 3: Re-lever to target structure
-        target_beta = self._calculate_relevered_beta(avg_unlevered_beta, target_debt_ratio, self.tax_rate)
-        
-        # Step 4: CAPM
-        cost_of_equity = self.rf_rate + (target_beta * self.mrp)
-        
-        # Step 5: WACC
-        # D/V = D/(D+E), if D/E = x, then D/V = x/(1+x)
-        debt_weight = target_debt_ratio / (1 + target_debt_ratio)
-        equity_weight = 1 - debt_weight
-        
-        after_tax_cost_of_debt = self.cost_of_debt * (1 - self.tax_rate)
-        
-        wacc = (cost_of_equity * equity_weight) + (after_tax_cost_of_debt * debt_weight)
+        # Use Korean WACC Calculator (with optional live beta)
+        wacc_result = self.korean_wacc.calculate(
+            peers=peers_formatted,
+            target_debt_ratio=target_debt_ratio,
+            cost_of_debt_pretax=self.cost_of_debt,
+            is_listed=target_info.get('is_listed', False),
+            size_metric_mil_krw=target_info.get('size_mil_krw', 15000),
+            rf=self.rf_rate,
+            mrp=self.mrp,
+            peer_tickers=peer_tickers  # NEW: Pass tickers for live beta
+        )
         
         # Apply scenario premium
-        wacc += scenario_params.get('wacc_premium', 0.0)
+        wacc = wacc_result['WACC'] + scenario_params.get('wacc_premium', 0.0)
         
         return {
             'wacc': wacc,
-            'cost_of_equity': cost_of_equity,
+            'cost_of_equity': wacc_result['Ke'],
             'cost_of_debt': self.cost_of_debt,
-            'after_tax_cost_of_debt': after_tax_cost_of_debt,
-            'target_beta': target_beta,
-            'unlevered_beta': avg_unlevered_beta,
-            'debt_weight': debt_weight,
-            'equity_weight': equity_weight
+            'after_tax_cost_of_debt': wacc_result['Kd_post_tax'],
+            'target_beta': wacc_result['Beta_Levered'],
+            'unlevered_beta': wacc_result['Beta_Unlevered'],
+            'debt_weight': wacc_result['Weight_Debt'],
+            'equity_weight': wacc_result['Weight_Equity'],
+            # Korean specific
+            'srp': wacc_result['SRP'],
+            'srp_quintile': wacc_result['SRP_Quintile'],
+            'srp_description': wacc_result['SRP_Description'],
+            'korean_standard': True
         }
     
     # ========================================================================
@@ -245,19 +286,37 @@ class WoodOrchestrator:
     # DCF VALUATION
     # ========================================================================
     
-    def _calculate_dcf(self, scenario_name, scenario_params, base_revenue):
+    def _calculate_dcf(
+        self, 
+        scenario_name, 
+        scenario_params, 
+        base_revenue,
+        target_info: Dict = None
+    ):
         """
         Execute full DCF valuation for a scenario
+        
+        Args:
+            scenario_name: Scenario name
+            scenario_params: Scenario parameters
+            base_revenue: Base revenue
+            target_info: Target company info for Korean WACC
         
         Returns:
             dict with all valuation components
         """
         print(f"      📊 Scenario: {scenario_name}")
         
-        # 1. Calculate WACC
-        wacc_result = self._calculate_wacc(scenario_name, scenario_params)
+        # 1. Calculate WACC (Korean Standard)
+        wacc_result = self._calculate_wacc(scenario_name, scenario_params, target_info)
         wacc = wacc_result['wacc']
-        print(f"         WACC: {wacc*100:.2f}%")
+        
+        # Display Korean-specific info
+        if wacc_result.get('korean_standard'):
+            print(f"         WACC: {wacc*100:.2f}% (Korean KICPA Standard)")
+            print(f"         SRP: {wacc_result['srp']*100:.2f}% ({wacc_result['srp_description']})")
+        else:
+            print(f"         WACC: {wacc*100:.2f}%")
         
         # 2. Build FCF Projection
         fcf_df = self._build_fcf_projection(base_revenue, scenario_params)
@@ -536,15 +595,21 @@ class WoodOrchestrator:
         self, 
         project_name: str, 
         base_revenue: float = 100.0,
-        data_source: str = "User Input"
+        data_source: str = "User Input",
+        target_info: Dict = None
     ):
         """
-        Execute IB-grade DCF valuation across scenarios
+        Execute IB-grade DCF valuation across scenarios (Korean Standard)
         
         Args:
             project_name: Project/Company name
             base_revenue: Base year revenue (억 원)
             data_source: Data source attribution (e.g., "DART 2024.3Q")
+            target_info: Target company info for Korean WACC
+                {
+                    "is_listed": bool,
+                    "size_mil_krw": float (시가총액 or 순자산, 백만원)
+                }
         
         Returns:
             (filepath, summary_text): Excel path and summary
@@ -552,12 +617,22 @@ class WoodOrchestrator:
         print(f"🌲 WOOD Engine: IB-Grade DCF for '{project_name}' (Rev: {base_revenue}억)")
         print(f"   📊 Data Source: {data_source}")
         
+        # Default target info (비상장 소형 가정)
+        if target_info is None:
+            # Revenue 기반 규모 추정 (매우 단순한 heuristic)
+            estimated_size = base_revenue * 100  # 100억 매출 → 1만백만원 = 100억
+            target_info = {
+                'is_listed': False,
+                'size_mil_krw': estimated_size
+            }
+            print(f"   ℹ️ Target Info: Unlisted, Estimated Size {estimated_size:,.0f}백만원")
+        
         results = []
         scenarios = self.config['scenarios']
         
         # Run each scenario
         for scenario_name, scenario_params in scenarios.items():
-            result = self._calculate_dcf(scenario_name, scenario_params, base_revenue)
+            result = self._calculate_dcf(scenario_name, scenario_params, base_revenue, target_info)
             results.append(result)
         
         # Generate summary text
