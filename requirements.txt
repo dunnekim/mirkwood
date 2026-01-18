@@ -1,0 +1,16 @@
+openai
+google-generativeai
+python-dotenv
+duckduckgo-search>=6.0.0
+opendartreader
+finance-datareader
+pandas
+numpy
+openpyxl
+requests
+beautifulsoup4
+python-telegram-bot
+apscheduler
+pytz
+schedule
+streamlit

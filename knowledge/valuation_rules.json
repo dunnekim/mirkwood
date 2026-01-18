@@ -1,0 +1,18 @@
+{
+    "non_fs_rules": {
+      "IT·인터넷·플랫폼": { "band": [1.0, 3.0, 6.0], "type": "PS", "margin": 20 },
+      "게임·엔터": { "band": [10, 13, 16], "type": "EV/EBITDA", "margin": 25 },
+      "헬스케어·바이오": { "band": [8, 11, 14], "type": "EV/EBITDA", "margin": 18 },
+      "반도체·딥테크": { "band": [1.5, 3.0, 6.0], "type": "PS", "margin": 10 },
+      "제조업·부품": { "band": [4, 5.5, 7], "type": "EV/EBITDA", "margin": 12 },
+      "소비재·화장품": { "band": [7, 9, 11], "type": "EV/EBITDA", "margin": 15 },
+      "리테일·유통": { "band": [5, 7, 9], "type": "EV/EBITDA", "margin": 8 },
+      "서비스": { "band": [7, 9, 12], "type": "EV/EBITDA", "margin": 15 }
+    },
+    "fs_rules": {
+      "금융지주": { "band": [0.4, 0.7, 1.0], "type": "PBR" },
+      "증권·선물": { "band": [0.5, 1.0, 1.5], "type": "PBR" },
+      "자산운용": { "band": [1.0, 1.5, 2.0], "type": "PBR" },
+      "신기술금융·VC": { "band": [0.6, 1.0, 1.4], "type": "PBR" }
+    }
+  }

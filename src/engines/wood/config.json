@@ -1,0 +1,39 @@
+{
+  "project_settings": {
+    "risk_free_rate": 0.035,
+    "market_risk_premium": 0.060,
+    "terminal_growth_rate": 0.015,
+    "tax_rate": 0.22
+  },
+  "scenarios": {
+    "Base": {
+      "revenue_growth": 0.10,
+      "ebit_margin": 0.15,
+      "da_ratio": 0.03,
+      "capex_ratio": 0.03,
+      "nwc_ratio": 0.05,
+      "wacc_premium": 0.0
+    },
+    "Bull": {
+      "revenue_growth": 0.15,
+      "ebit_margin": 0.20,
+      "da_ratio": 0.02,
+      "capex_ratio": 0.04,
+      "nwc_ratio": 0.04,
+      "wacc_premium": -0.01
+    },
+    "Bear": {
+      "revenue_growth": 0.05,
+      "ebit_margin": 0.08,
+      "da_ratio": 0.04,
+      "capex_ratio": 0.02,
+      "nwc_ratio": 0.06,
+      "wacc_premium": 0.02
+    }
+  },
+  "peer_group": [
+    {"name": "Peer_A", "beta": 1.1, "debt_equity_ratio": 0.3},
+    {"name": "Peer_B", "beta": 0.9, "debt_equity_ratio": 0.2},
+    {"name": "Peer_C", "beta": 1.3, "debt_equity_ratio": 0.5}
+  ]
+}

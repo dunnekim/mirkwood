@@ -1,0 +1,279 @@
+INFO:primp:response: https://www.bing.com/search?q=%EA%B2%BD%EC%98%81%EA%B6%8C+%EB%A7%A4%EA%B0%81+%EA%B2%80%ED%86%A0 200
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+ERROR:root:[LLM Error] Error code: 401 - {'error': {'message': 'Incorrect API key provided: your_key*here. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+ERROR:root:[LLM Error] Error code: 401 - {'error': {'message': 'Incorrect API key provided: your_key*here. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+ERROR:root:[LLM Error] Error code: 401 - {'error': {'message': 'Incorrect API key provided: your_key*here. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+ERROR:root:[LLM Error] Error code: 401 - {'error': {'message': 'Incorrect API key provided: your_key*here. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+ERROR:root:[LLM Error] Error code: 401 - {'error': {'message': 'Incorrect API key provided: your_key*here. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+INFO:primp:response: https://www.bing.com/search?q=%EA%B2%BD%EC%98%81%EA%B6%8C+%EB%A7%A4%EA%B0%81+%EA%B2%80%ED%86%A0 200
+INFO:primp:response: https://www.bing.com/search?q=%EA%B2%BD%EC%98%81%EA%B6%8C+%EB%A7%A4%EA%B0%81+%EA%B2%80%ED%86%A0 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 404 Not Found"
+ERROR:root:[Local LLM Error] Error code: 404 - {'error': {'message': "model 'llama3' not found", 'type': 'api_error', 'param': None, 'code': None}}
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 404 Not Found"
+ERROR:root:[Local LLM Error] Error code: 404 - {'error': {'message': "model 'llama3' not found", 'type': 'api_error', 'param': None, 'code': None}}
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 404 Not Found"
+ERROR:root:[Local LLM Error] Error code: 404 - {'error': {'message': "model 'llama3' not found", 'type': 'api_error', 'param': None, 'code': None}}
+INFO:primp:response: https://www.bing.com/search?q=%ED%88%AC%EC%9E%90+%EC%9C%A0%EC%B9%98+%ED%9D%AC%EB%A7%9D+%EC%8A%A4%ED%83%80%ED%8A%B8%EC%97%85 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://www.bing.com/search?q=%ED%88%AC%EC%9E%90+%EC%9C%A0%EC%B9%98+%ED%9D%AC%EB%A7%9D+%EC%8A%A4%ED%83%80%ED%8A%B8%EC%97%85 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://www.bing.com/search?q=%ED%88%AC%EC%9E%90+%EC%9C%A0%EC%B9%98+%ED%9D%AC%EB%A7%9D+%EC%8A%A4%ED%83%80%ED%8A%B8%EC%97%85 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%22%EB%BF%8C%EB%A6%AC%EC%82%B0%EC%97%85%22+%ED%8F%90%EC%97%85+%EC%9C%84%EA%B8%B0+%EA%B2%BD%EC%98%81%EA%B6%8C+-%EB%BF%8C%EB%A6%AC%EC%98%A4&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%227%22 200
+INFO:primp:response: https://duckduckgo.com/?q=%22%EB%BF%8C%EB%A6%AC%EC%82%B0%EC%97%85%22+%ED%8F%90%EC%97%85+%EC%9C%84%EA%B8%B0+%EA%B2%BD%EC%98%81%EA%B6%8C+-%EB%BF%8C%EB%A6%AC%EC%98%A4 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%22%EB%BF%8C%EB%A6%AC%EC%82%B0%EC%97%85%22+%ED%8F%90%EC%97%85+%EC%9C%84%EA%B8%B0+%EA%B2%BD%EC%98%81%EA%B6%8C+-%EB%BF%8C%EB%A6%AC%EC%98%A4&vqd=4-2423761239504675790420640755712567290&p=-1&df=w 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://duckduckgo.com/?q=%22%EC%A7%80%EB%B0%A9+%EC%82%B0%EB%8B%A8%22+%EA%B3%B5%EC%9E%A5+%EB%A7%A4%EA%B0%81+%EA%B3%A0%EB%A0%B9%ED%99%94+-%EC%A0%9C%EC%82%AC 200
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%22%EC%A7%80%EB%B0%A9+%EC%82%B0%EB%8B%A8%22+%EA%B3%B5%EC%9E%A5+%EB%A7%A4%EA%B0%81+%EA%B3%A0%EB%A0%B9%ED%99%94+-%EC%A0%9C%EC%82%AC&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%227%22 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%22%EC%A7%80%EB%B0%A9+%EC%82%B0%EB%8B%A8%22+%EA%B3%B5%EC%9E%A5+%EB%A7%A4%EA%B0%81+%EA%B3%A0%EB%A0%B9%ED%99%94+-%EC%A0%9C%EC%82%AC&vqd=4-259240810928153085781601998142397838532&p=-1&df=w 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+WARNING:rquest.client.decoder:gzip response with content-length of 0
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%22%EC%A7%80%EB%B0%A9+%EC%82%B0%EB%8B%A8%22+%EA%B3%B5%EC%9E%A5+%EB%A7%A4%EA%B0%81+%EA%B3%A0%EB%A0%B9%ED%99%94+-%EC%A0%9C%EC%82%AC&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%227%22 200
+INFO:primp:response: https://duckduckgo.com/?q=%22%EC%A7%80%EB%B0%A9+%EC%82%B0%EB%8B%A8%22+%EA%B3%B5%EC%9E%A5+%EB%A7%A4%EA%B0%81+%EA%B3%A0%EB%A0%B9%ED%99%94+-%EC%A0%9C%EC%82%AC 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%22%EC%A7%80%EB%B0%A9+%EC%82%B0%EB%8B%A8%22+%EA%B3%B5%EC%9E%A5+%EB%A7%A4%EA%B0%81+%EA%B3%A0%EB%A0%B9%ED%99%94+-%EC%A0%9C%EC%82%AC&vqd=4-259240810928153085781601998142397838532&p=-1&df=w 200
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EC%84%A4%EB%B9%84+%ED%88%AC%EC%9E%90+%EA%B3%B5%EC%8B%9C&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%229%22 200
+INFO:primp:response: https://duckduckgo.com/?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EC%84%A4%EB%B9%84+%ED%88%AC%EC%9E%90+%EA%B3%B5%EC%8B%9C 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EC%84%A4%EB%B9%84+%ED%88%AC%EC%9E%90+%EA%B3%B5%EC%8B%9C&vqd=4-153317940446862230582333939175238349075&p=-1&df=y 200
+INFO:primp:response: https://news.search.yahoo.com/search?p=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EC%84%A4%EB%B9%84+%ED%88%AC%EC%9E%90+%EA%B3%B5%EC%8B%9C&btf=y 200
+INFO:primp:response: https://duckduckgo.com/?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EC%8B%9C%EC%9E%A5+%EC%A0%90%EC%9C%A0%EC%9C%A8+1%EC%9C%84+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91 200
+INFO:primp:response: https://news.search.yahoo.com/search?p=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EC%8B%9C%EC%9E%A5+%EC%A0%90%EC%9C%A0%EC%9C%A8+1%EC%9C%84+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91&btf=y 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EC%8B%9C%EC%9E%A5+%EC%A0%90%EC%9C%A0%EC%9C%A8+1%EC%9C%84+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91&vqd=4-334275518692833504339996348440825752584&p=-1&df=y 200
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EC%8B%9C%EC%9E%A5+%EC%A0%90%EC%9C%A0%EC%9C%A8+1%EC%9C%84+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%229%22 200
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%EA%B5%AD%EB%82%B4+PEF+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98+%EC%82%AC%EB%A1%80&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%229%22 200
+INFO:primp:response: https://news.search.yahoo.com/search?p=%EA%B5%AD%EB%82%B4+PEF+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98+%EC%82%AC%EB%A1%80&btf=y 200
+INFO:primp:response: https://duckduckgo.com/?q=%EA%B5%AD%EB%82%B4+PEF+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98+%EC%82%AC%EB%A1%80 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%EA%B5%AD%EB%82%B4+PEF+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0%28Casting%29+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98+%EC%82%AC%EB%A1%80&vqd=4-160790753979052299072397538527274237882&p=-1&df=y 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+WARNING:rquest.client.decoder:gzip response with content-length of 0
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%EA%B5%AD%EB%82%B4+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%229%22 200
+INFO:primp:response: https://duckduckgo.com/?q=%EA%B5%AD%EB%82%B4+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%EA%B5%AD%EB%82%B4+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91&vqd=4-174673893745124387133540517549912190523&p=-1&df=y 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EB%8C%80%EA%B7%9C%EB%AA%A8+%ED%88%AC%EC%9E%90&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%229%22 200
+INFO:primp:response: https://duckduckgo.com/?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EB%8C%80%EA%B7%9C%EB%AA%A8+%ED%88%AC%EC%9E%90 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EB%8C%80%EA%B7%9C%EB%AA%A8+%ED%88%AC%EC%9E%90&vqd=4-218170826315498925789760843770088804387&p=-1&df=y 200
+INFO:primp:response: https://news.search.yahoo.com/search?p=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EB%8C%80%EA%B7%9C%EB%AA%A8+%ED%88%AC%EC%9E%90&btf=y 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+WARNING:rquest.client.decoder:gzip response with content-length of 0
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%EC%82%AC%EB%AA%A8%ED%8E%80%EB%93%9C+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%229%22 200
+INFO:primp:response: https://duckduckgo.com/?q=%EC%82%AC%EB%AA%A8%ED%8E%80%EB%93%9C+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%EC%82%AC%EB%AA%A8%ED%8E%80%EB%93%9C+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98&vqd=4-324825194701305581639933420503094675015&p=-1&df=y 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EB%8C%80%EC%9E%A5%EC%A3%BC 200
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EB%8C%80%EC%9E%A5%EC%A3%BC&limit=1 200
+INFO:primp:response: https://www.google.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EB%8C%80%EC%9E%A5%EC%A3%BC&filter=1&start=0&hl=kr-KR&lr=lang_kr&cr=countryKR&tbs=qdr%3Ay 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8%EC%A3%BC+%EC%83%81%EC%9E%A5%EC%82%AC&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EA%B4%80%EB%A0%A8%EC%A3%BC%20%EC%83%81%EC%9E%A5%EC%82%AC 200
+INFO:httpx:HTTP Request: POST https://html.duckduckgo.com/html/ "HTTP/2 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B5%AD%EB%82%B4+%EC%A3%BC%EC%9A%94+%EA%B8%B0%EC%97%85&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EA%B5%AD%EB%82%B4%20%EC%A3%BC%EC%9A%94%20%EA%B8%B0%EC%97%85 200
+INFO:httpx:HTTP Request: POST https://html.duckduckgo.com/html/ "HTTP/2 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%83%81%EC%9E%A5%EC%82%AC+%EC%88%9C%EC%9C%84&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%83%81%EC%9E%A5%EC%82%AC%20%EC%88%9C%EC%9C%84 200
+INFO:primp:response: https://www.google.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%83%81%EC%9E%A5%EC%82%AC+%EC%88%9C%EC%9C%84&filter=1&start=0&hl=kr-KR&lr=lang_kr&cr=countryKR&tbs=qdr%3Ay 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EA%B5%AD%EB%82%B4+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EC%A4%91%EA%B2%AC%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91+%EC%82%AC%EB%A1%80&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EA%B5%AD%EB%82%B4%20%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EC%A4%91%EA%B2%AC%EA%B8%B0%EC%97%85%20%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91%20%EC%82%AC%EB%A1%80 200
+INFO:primp:response: https://www.google.com/search?q=%EA%B5%AD%EB%82%B4+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EC%A4%91%EA%B2%AC%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91+%EC%82%AC%EB%A1%80&filter=1&start=0&hl=kr-KR&lr=lang_kr&cr=countryKR&tbs=qdr%3Ay 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EC%8B%A0%EC%82%AC%EC%97%85+%EC%A7%84%EC%B6%9C+%ED%88%AC%EC%9E%90&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EA%B4%80%EB%A0%A8%20%EC%83%81%EC%9E%A5%EC%82%AC%20%EC%8B%A0%EC%82%AC%EC%97%85%20%EC%A7%84%EC%B6%9C%20%ED%88%AC%EC%9E%90 200
+INFO:primp:response: https://www.google.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8+%EC%83%81%EC%9E%A5%EC%82%AC+%EC%8B%A0%EC%82%AC%EC%97%85+%EC%A7%84%EC%B6%9C+%ED%88%AC%EC%9E%90&filter=1&start=0&hl=kr-KR&lr=lang_kr&cr=countryKR&tbs=qdr%3Ay 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EB%B6%80%ED%92%88%EC%82%AC+%EC%A7%80%EB%B6%84+%ED%88%AC%EC%9E%90+%EB%89%B4%EC%8A%A4&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EB%B6%80%ED%92%88%EC%82%AC%20%EC%A7%80%EB%B6%84%20%ED%88%AC%EC%9E%90%20%EB%89%B4%EC%8A%A4 200
+INFO:primp:response: https://www.mojeek.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EB%B6%80%ED%92%88%EC%82%AC+%EC%A7%80%EB%B6%84+%ED%88%AC%EC%9E%90+%EB%89%B4%EC%8A%A4 200
+INFO:primp:response: https://www.google.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EB%B6%80%ED%92%88%EC%82%AC+%EC%A7%80%EB%B6%84+%ED%88%AC%EC%9E%90+%EB%89%B4%EC%8A%A4&filter=1&start=0&hl=kr-KR&lr=lang_kr&cr=countryKR&tbs=qdr%3Ay 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A4%91%EA%B2%AC%EA%B8%B0%EC%97%85+%EC%82%AC%EC%97%85%EC%9E%AC%ED%8E%B8&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A4%91%EA%B2%AC%EA%B8%B0%EC%97%85%20%EC%82%AC%EC%97%85%EC%9E%AC%ED%8E%B8 200
+INFO:httpx:HTTP Request: POST https://html.duckduckgo.com/html/ "HTTP/2 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8%EC%A3%BC+%EB%8C%80%EC%9E%A5%EC%A3%BC&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EA%B4%80%EB%A0%A8%EC%A3%BC%20%EB%8C%80%EC%9E%A5%EC%A3%BC 200
+INFO:primp:response: https://search.yahoo.com/search;_ylt=ZROQalLvwlYP_MRGaomHAsjJ;_ylu=FvtjIL8l-WiP9aK4ukTtAivw-S6rv8Uqs4Uqk74963xUTiM?p=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8%EC%A3%BC+%EB%8C%80%EC%9E%A5%EC%A3%BC&btf=y 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EC%A3%BC%EC%9A%94+%EA%B8%B0%EC%97%85+%EB%A6%AC%EC%8A%A4%ED%8A%B8&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EC%A3%BC%EC%9A%94%20%EA%B8%B0%EC%97%85%20%EB%A6%AC%EC%8A%A4%ED%8A%B8 200
+INFO:primp:response: https://www.mojeek.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EC%A3%BC%EC%9A%94+%EA%B8%B0%EC%97%85+%EB%A6%AC%EC%8A%A4%ED%8A%B8 200
+INFO:primp:response: https://search.brave.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EC%A3%BC%EC%9A%94+%EA%B8%B0%EC%97%85+%EB%A6%AC%EC%8A%A4%ED%8A%B8&source=web&tf=py 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EC%A4%91%EA%B2%AC%EA%B8%B0%EC%97%85%20%EC%88%9C%EC%9C%84 200
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EC%A4%91%EA%B2%AC%EA%B8%B0%EC%97%85+%EC%88%9C%EC%9C%84&limit=1 200
+INFO:primp:response: https://yandex.com/search/site/?text=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EC%A4%91%EA%B2%AC%EA%B8%B0%EC%97%85+%EC%88%9C%EC%9C%84&web=1&searchid=7312796 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8%EC%A3%BC+%EC%83%81%EC%9E%A5%EC%82%AC+%EB%AA%A9%EB%A1%9D&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EA%B4%80%EB%A0%A8%EC%A3%BC%20%EC%83%81%EC%9E%A5%EC%82%AC%20%EB%AA%A9%EB%A1%9D 200
+INFO:primp:response: https://www.google.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8%EC%A3%BC+%EC%83%81%EC%9E%A5%EC%82%AC+%EB%AA%A9%EB%A1%9D&filter=1&start=0&hl=kr-KR&lr=lang_kr&cr=countryKR&tbs=qdr%3Ay 200
+INFO:primp:response: https://yandex.com/search/site/?text=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B4%80%EB%A0%A8%EC%A3%BC+%EC%83%81%EC%9E%A5%EC%82%AC+%EB%AA%A9%EB%A1%9D&web=1&searchid=1301183 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EA%B5%AD%EB%82%B4+%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EA%B0%95%EC%86%8C%EA%B8%B0%EC%97%85+%EB%A6%AC%EC%8A%A4%ED%8A%B8&limit=1 200
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EA%B5%AD%EB%82%B4%20%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EA%B0%95%EC%86%8C%EA%B8%B0%EC%97%85%20%EB%A6%AC%EC%8A%A4%ED%8A%B8 200
+INFO:httpx:HTTP Request: POST https://html.duckduckgo.com/html/ "HTTP/2 200 OK"
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://kr.wikipedia.org/w/api.php?action=opensearch&profile=fuzzy&limit=1&search=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EB%B6%80%ED%92%88%20%EC%A3%BC%EC%A1%B0%20%EB%B6%80%ED%92%88%20%EC%A0%9C%EC%A1%B0%20%EC%83%81%EC%9E%A5%EC%82%AC 200
+INFO:primp:response: https://grokipedia.com/api/typeahead?query=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EB%B6%80%ED%92%88+%EC%A0%9C%EC%A1%B0+%EC%83%81%EC%9E%A5%EC%82%AC&limit=1 200
+INFO:primp:response: https://search.brave.com/search?q=%EC%9E%90%EB%8F%99%EC%B0%A8+%EB%B6%80%ED%92%88+%EC%A3%BC%EC%A1%B0+%EB%B6%80%ED%92%88+%EC%A0%9C%EC%A1%B0+%EC%83%81%EC%9E%A5%EC%82%AC&source=web&tf=py 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%22SaaS%22+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91%28M%26A%29+%EC%8B%9C%EC%9E%A5&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%227%22 200
+INFO:primp:response: https://duckduckgo.com/?q=%22SaaS%22+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91%28M%26A%29+%EC%8B%9C%EC%9E%A5 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%22SaaS%22+%EA%B8%B0%EC%97%85+%EC%9D%B8%EC%88%98%ED%95%A9%EB%B3%91%28M%26A%29+%EC%8B%9C%EC%9E%A5&vqd=4-155478371091046299546890780469783659463&p=-1&df=w 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%22%ED%94%8C%EB%9E%AB%ED%8F%BC%22+%EA%B2%BD%EC%98%81%EA%B6%8C+%EB%A7%A4%EA%B0%81+%EC%B6%94%EC%A7%84&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%227%22 200
+INFO:primp:response: https://news.search.yahoo.com/search?p=%22%ED%94%8C%EB%9E%AB%ED%8F%BC%22+%EA%B2%BD%EC%98%81%EA%B6%8C+%EB%A7%A4%EA%B0%81+%EC%B6%94%EC%A7%84&btf=w 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://duckduckgo.com/?q=%22%ED%95%80%ED%85%8C%ED%81%AC%22+%EA%B8%B0%EC%97%85+%EB%A7%A4%EB%AC%BC 200
+INFO:primp:response: https://news.search.yahoo.com/search?p=%22%ED%95%80%ED%85%8C%ED%81%AC%22+%EA%B8%B0%EC%97%85+%EB%A7%A4%EB%AC%BC&btf=w 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%22%ED%95%80%ED%85%8C%ED%81%AC%22+%EA%B8%B0%EC%97%85+%EB%A7%A4%EB%AC%BC&vqd=4-11528353123692573040081952731492820608&p=-1&df=w 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://duckduckgo.com/?q=%22%EC%9E%AC%ED%99%9C%EC%9A%A9%22+%EA%B8%B0%EC%97%85+M%26A+%EC%82%AC%EB%AA%A8%ED%8E%80%EB%93%9C 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%22%EC%9E%AC%ED%99%9C%EC%9A%A9%22+%EA%B8%B0%EC%97%85+M%26A+%EC%82%AC%EB%AA%A8%ED%8E%80%EB%93%9C&vqd=4-311758786027389401566673758747115465084&p=-1&df=w 200
+INFO:primp:response: https://news.search.yahoo.com/search?p=%22%EC%9E%AC%ED%99%9C%EC%9A%A9%22+%EA%B8%B0%EC%97%85+M%26A+%EC%82%AC%EB%AA%A8%ED%8E%80%EB%93%9C&btf=w 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:primp:response: https://www.bing.com/news/infinitescrollajax?q=%22%ED%8F%90%EA%B8%B0%EB%AC%BC%22+%EC%B2%98%EB%A6%AC%EC%97%85%EC%B2%B4+%EB%A7%A4%EB%AC%BC&InfiniteScroll=1&first=11&SFX=1&cc=kr&setlang=kr&qft=interval%3D%229%22 200
+INFO:primp:response: https://duckduckgo.com/?q=%22%ED%8F%90%EA%B8%B0%EB%AC%BC%22+%EC%B2%98%EB%A6%AC%EC%97%85%EC%B2%B4+%EB%A7%A4%EB%AC%BC 200
+INFO:primp:response: https://duckduckgo.com/news.js?l=kr-kr&o=json&noamp=1&q=%22%ED%8F%90%EA%B8%B0%EB%AC%BC%22+%EC%B2%98%EB%A6%AC%EC%97%85%EC%B2%B4+%EB%A7%A4%EB%AC%BC&vqd=4-255970477519506830933359767655397727406&p=-1&df=m 200
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3
+INFO:httpx:HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:[Local LLM] Called model: llama3

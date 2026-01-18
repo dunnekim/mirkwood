@@ -1,0 +1,18 @@
+{
+  "company": "NVIDIA",
+  "industry": "서비스",
+  "financials": {
+    "industry": "서비스",
+    "revenue": 50,
+    "ebitda": 5,
+    "net_debt": 0,
+    "is_high_growth": false
+  },
+  "metric": "EV/EBITDA",
+  "multiple_applied": 9.3,
+  "value_range_krw_bn": [
+    35,
+    60
+  ],
+  "target_value_krw_bn": 46.7
+}
