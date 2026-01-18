@@ -27,18 +27,42 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 비밀번호 보안 (간단한 인증)
+# ==============================================================================
+# 🔒 Access Control (Mellon Gate)
+# ==============================================================================
 if 'auth' not in st.session_state:
     st.session_state.auth = False
 
 def check_password():
-    # 실제 배포 시 st.secrets["PASSWORD"] 사용 권장
-    pwd = st.sidebar.text_input("Access Key", type="password")
-    if pwd == "dunne1234": # [보안] 임시 비밀번호
-        st.session_state.auth = True
+    """
+    Access Code: "mellon"
+    
+    [Security Note]
+    For production, use st.secrets["ACCESS_CODE"] instead of hardcoded value.
+    """
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.markdown("### 🌲 MIRKWOOD Partners")
+        st.markdown("*Boutique Investment Bank AI*")
+        st.divider()
+        st.info("🔒 This application is restricted. Please enter access code.")
+    
+    with col2:
+        st.markdown("")
+        st.markdown("")
+        st.markdown("")
+        pwd = st.text_input("Access Code", type="password", key="access_code_input")
+        
+        if st.button("Enter", use_container_width=True):
+            if pwd == "mellon":  # [Security] Access code
+                st.session_state.auth = True
+                st.success("✅ Access Granted")
+                st.rerun()
+            else:
+                st.error("❌ Invalid Code")
 
 if not st.session_state.auth:
-    st.sidebar.warning("🔒 Access Restricted")
     check_password()
     st.stop()
 

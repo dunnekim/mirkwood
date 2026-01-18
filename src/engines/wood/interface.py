@@ -188,11 +188,11 @@ class ExternalDataResponse:
     document_name: str
     """Name of provided document"""
     
-    file_path: Optional[str] = None
-    """Path to file if uploaded"""
-    
     summary: str
     """Brief summary of contents"""
+    
+    file_path: Optional[str] = None
+    """Path to file if uploaded"""
     
     analyst_notes: Optional[str] = None
     """Notes from analyst who reviewed this"""

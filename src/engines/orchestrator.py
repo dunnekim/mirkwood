@@ -15,7 +15,8 @@ import os
 import pandas as pd
 import numpy as np
 from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment, numbers
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
+from openpyxl.utils import get_column_letter
 
 
 class WoodOrchestrator:
@@ -50,7 +51,7 @@ class WoodOrchestrator:
     def _load_config(self):
         with open(self.config_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    
+
     # ========================================================================
     # WACC CALCULATION (IB Standard)
     # ========================================================================
@@ -343,75 +344,213 @@ class WoodOrchestrator:
     # EXCEL EXPORT (Professional Formatting)
     # ========================================================================
     
-    def _format_excel(self, filepath):
+    def _format_excel(self, filepath, data_source: str = "User Input"):
         """
-        Apply professional formatting to Excel file
-        - Bold headers
-        - Thousand separators
-        - Percentage format
-        - Alignment
+        Apply Big 4 accounting firm style formatting
+        
+        [Big 4 Standard]
+        1. Data Source Attribution (A1 cell)
+        2. Color Coding: Blue = Input, Black = Formula
+        3. Professional borders and alignment
+        4. Number formatting with thousand separators
+        
+        Args:
+            filepath: Excel file path
+            data_source: Data source attribution string
         """
         wb = load_workbook(filepath)
         
-        # Define styles
-        header_font = Font(bold=True, size=11)
-        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-        header_alignment = Alignment(horizontal="center", vertical="center")
+        # ==============================================================
+        # DEFINE BIG 4 STYLES
+        # ==============================================================
+        
+        # Header style (Dark gray + white text)
+        header_font = Font(bold=True, size=11, color="FFFFFF")
+        header_fill = PatternFill(start_color="4F4F4F", end_color="4F4F4F", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        
+        # Input values (BLUE font) - Assumptions/hard-coded values
+        input_font = Font(bold=False, size=10, color="0000FF")
+        
+        # Calculated values (BLACK font) - Formulas/linked values
+        calc_font = Font(bold=False, size=10, color="000000")
+        
+        # Result values (BLACK BOLD) - Final outputs
+        result_font = Font(bold=True, size=10, color="000000")
+        
+        # Borders
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        thick_border = Border(
+            left=Side(style='thick'),
+            right=Side(style='thick'),
+            top=Side(style='thick'),
+            bottom=Side(style='thick')
+        )
+        
+        # Source attribution style
+        source_font = Font(bold=True, size=9, color="808080", italic=True)
+        
+        # ==============================================================
+        # APPLY FORMATTING TO EACH SHEET
+        # ==============================================================
         
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
             
-            # Format headers (first row)
-            for cell in ws[1]:
-                cell.font = Font(bold=True, size=11, color="FFFFFF")
-                cell.fill = header_fill
-                cell.alignment = header_alignment
+            # ----------------------------------------------------------
+            # 1. DATA SOURCE ATTRIBUTION (Right side of header)
+            # ----------------------------------------------------------
+            if ws.max_column and ws.max_column > 0:
+                last_col = get_column_letter(ws.max_column)
+                source_cell = ws[f'{last_col}1']
+                source_cell.value = f"Source: {data_source}"
+                source_cell.font = source_font
+                source_cell.alignment = Alignment(horizontal="right", vertical="top")
             
-            # Auto-adjust column width
+            # ----------------------------------------------------------
+            # 2. HEADER ROW FORMATTING
+            # ----------------------------------------------------------
+            for cell in ws[1]:
+                if cell.value and cell.value != f"Source: {data_source}":
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_alignment
+                    cell.border = thick_border
+            
+            # ----------------------------------------------------------
+            # 3. AUTO-ADJUST COLUMN WIDTH
+            # ----------------------------------------------------------
             for column in ws.columns:
                 max_length = 0
                 column_letter = column[0].column_letter
                 for cell in column:
                     try:
                         if cell.value:
-                            max_length = max(max_length, len(str(cell.value)))
+                            cell_len = len(str(cell.value))
+                            max_length = max(max_length, cell_len)
                     except:
                         pass
-                adjusted_width = min(max_length + 2, 20)
+                adjusted_width = min(max_length + 3, 25)
                 ws.column_dimensions[column_letter].width = adjusted_width
             
-            # Format numbers (detect by column name)
+            # ----------------------------------------------------------
+            # 4. DATA ROW FORMATTING (Color Coding + Number Format)
+            # ----------------------------------------------------------
+            
+            # Identify assumption columns (these should be BLUE)
+            assumption_keywords = ['wacc', 'growth', 'rate', 'margin', 'ratio', 
+                                  'tax', 'premium', 'beta', 'debt']
+            
             for row_idx, row in enumerate(ws.iter_rows(min_row=2), start=2):
                 for col_idx, cell in enumerate(row, start=1):
                     col_name = ws.cell(1, col_idx).value
                     
-                    if col_name and isinstance(cell.value, (int, float)):
-                        # Percentage columns
-                        if any(x in str(col_name).lower() for x in ['wacc', 'growth', 'margin', 'rate', '%']):
+                    if cell.value is None:
+                        continue
+                    
+                    # Apply borders
+                    cell.border = thin_border
+                    
+                    # Number formatting and color coding
+                    if isinstance(cell.value, (int, float)):
+                        # Determine if this is an input or calculated value
+                        is_assumption = False
+                        if col_name:
+                            col_name_lower = str(col_name).lower()
+                            is_assumption = any(kw in col_name_lower for kw in assumption_keywords)
+                        
+                        # Percentage columns (inputs)
+                        if col_name and any(x in str(col_name).lower() for x in ['wacc', 'growth', 'margin', 'rate', '%']):
                             cell.number_format = '0.00%'
-                        # Regular numbers (thousands separator)
+                            cell.font = input_font  # BLUE for inputs
+                        
+                        # Regular numbers
                         else:
+                            # Thousand separator + 1 decimal
                             cell.number_format = '#,##0.0'
+                            
+                            # Color code: Assumptions = Blue, Calculations = Black
+                            if is_assumption or 'Scenario' in str(col_name):
+                                cell.font = input_font  # BLUE
+                            else:
+                                # Check if it's a result row (contains "Total", "Value", "Enterprise")
+                                row_label = ws.cell(row_idx, 1).value
+                                if row_label and any(x in str(row_label) for x in ['Total', 'Value', 'Enterprise', 'Terminal']):
+                                    cell.font = result_font  # BLACK BOLD
+                                else:
+                                    cell.font = calc_font  # BLACK
+                        
+                        # Negative numbers in red
+                        if cell.value < 0:
+                            current_font = cell.font
+                            cell.font = Font(
+                                bold=current_font.bold,
+                                size=current_font.size,
+                                color="FF0000"  # Red for negative
+                            )
+                    
+                    # Text alignment
+                    if isinstance(cell.value, (int, float)):
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                    else:
+                        cell.alignment = Alignment(horizontal="left", vertical="center")
+            
+            # ----------------------------------------------------------
+            # 5. SPECIAL FORMATTING FOR SPECIFIC SHEETS
+            # ----------------------------------------------------------
+            
+            # Assumptions sheet: All values are inputs (BLUE)
+            if "Assumptions" in sheet_name or "Assumption" in sheet_name:
+                for row in ws.iter_rows(min_row=2):
+                    for cell in row:
+                        if isinstance(cell.value, (int, float)):
+                            cell.font = input_font  # All BLUE
+            
+            # Sensitivity sheet: Highlight base case
+            if "Sensitivity" in sheet_name:
+                # Find and highlight base case (middle cell typically)
+                if ws.max_row > 2 and ws.max_column > 2:
+                    mid_row = (ws.max_row + 2) // 2
+                    mid_col = (ws.max_column + 1) // 2
+                    base_cell = ws.cell(mid_row, mid_col)
+                    base_cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+                    base_cell.font = Font(bold=True, size=10, color="000000")
         
+        # ==============================================================
+        # SAVE
+        # ==============================================================
         wb.save(filepath)
-        print(f"      ✨ Excel formatted professionally")
+        print(f"      ✨ Big 4 style formatting applied (Source: {data_source})")
     
     # ========================================================================
     # MAIN ORCHESTRATION
     # ========================================================================
     
-    def run_valuation(self, project_name: str, base_revenue: float = 100.0):
+    def run_valuation(
+        self, 
+        project_name: str, 
+        base_revenue: float = 100.0,
+        data_source: str = "User Input"
+    ):
         """
         Execute IB-grade DCF valuation across scenarios
         
         Args:
             project_name: Project/Company name
             base_revenue: Base year revenue (억 원)
+            data_source: Data source attribution (e.g., "DART 2024.3Q")
         
         Returns:
             (filepath, summary_text): Excel path and summary
         """
         print(f"🌲 WOOD Engine: IB-Grade DCF for '{project_name}' (Rev: {base_revenue}억)")
+        print(f"   📊 Data Source: {data_source}")
         
         results = []
         scenarios = self.config['scenarios']
@@ -506,13 +645,13 @@ class WoodOrchestrator:
         # Export
         filename = f"{project_name}_DCF_IB_Grade.xlsx"
         filepath = os.path.join(self.output_dir, filename)
-        
+
         with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
             for sheet_name, df in excel_sheets.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
         
-        # Apply formatting
-        self._format_excel(filepath)
+        # Apply Big 4 style formatting
+        self._format_excel(filepath, data_source=data_source)
         
         print(f"   ✅ IB-Grade DCF Package Exported: {filepath}")
         

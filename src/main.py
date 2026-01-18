@@ -199,31 +199,120 @@ async def run_pipeline(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def run_dcf(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     [WOOD Engine] 시나리오 DCF 수행 및 엑셀 파일 전송
+    
+    Usage: /dcf [기업명] [매출액(선택)]
+    
+    Process:
+    1. SmartIngestor가 DART → 웹검색 순으로 데이터 수집
+    2. 데이터 출처를 사용자에게 고지
+    3. Big 4 스타일 엑셀 생성 및 전송
     """
+    from src.tools.smart_ingestor import SmartFinancialIngestor
+    
     chat_id = update.effective_chat.id
     args = context.args
     if not args:
-        await update.message.reply_text("⚠️ 사용법: `/dcf [프로젝트명] [매출액(선택)]`")
+        await update.message.reply_text(
+            "⚠️ **사용법:**\n"
+            "`/dcf [기업명]` - 자동 데이터 수집\n"
+            "`/dcf [기업명] [매출액]` - 수동 입력",
+            parse_mode='Markdown'
+        )
         return
 
-    project_name = args[0]
-    base_rev = float(args[1]) if len(args) > 1 else 100.0 # Default 100억
+    company_name = args[0]
+    manual_revenue = float(args[1]) if len(args) > 1 else None
 
     session = get_session(chat_id)
     session.reset()
     session.is_running = True
     session.mode = 'DCF'
 
-    await update.message.reply_text(f"🌲 **MIRKWOOD Engine**\n프로젝트 '{project_name}' 시나리오 분석 중...")
-
     try:
         loop = asyncio.get_running_loop()
+        
+        # ================================================================
+        # STEP 1: SMART DATA INGESTION
+        # ================================================================
+        await update.message.reply_text(
+            f"🔎 **'{company_name}' 데이터 수집 중...**\n"
+            "1️⃣ DART 공식 재무제표 확인\n"
+            "2️⃣ 웹 검색 (뉴스/실적 추정)\n"
+            "3️⃣ 사용자 입력 대기"
+        )
+        
+        ingestor = SmartFinancialIngestor()
+        
+        # Try automated data collection
+        if manual_revenue is not None:
+            # Manual override mode
+            fin_data = await loop.run_in_executor(
+                None, 
+                ingestor.ingest_with_override, 
+                company_name, 
+                manual_revenue, 
+                manual_revenue * 0.1  # Assume 10% OP margin
+            )
+        else:
+            # Automated mode
+            fin_data = await loop.run_in_executor(
+                None, 
+                ingestor.ingest, 
+                company_name
+            )
+        
+        # Check if user input required
+        if fin_data.get('requires_input'):
+            await update.message.reply_text(
+                "❌ **데이터 수집 실패**\n\n"
+                "자동 데이터 수집에 실패했습니다.\n"
+                "수동 입력으로 다시 시도해주세요:\n\n"
+                "`/dcf {} [매출액(억원)]`".format(company_name),
+                parse_mode='Markdown'
+            )
+            return
+        
+        base_revenue = fin_data['revenue']
+        data_source = fin_data['source']
+        confidence = fin_data.get('confidence', 'Unknown')
+        
+        # ================================================================
+        # STEP 2: DATA CONFIRMATION MESSAGE
+        # ================================================================
+        confidence_emoji = {
+            "High": "✅",
+            "Medium": "⚠️",
+            "User-Provided": "👤"
+        }
+        emoji = confidence_emoji.get(confidence, "ℹ️")
+        
+        await update.message.reply_text(
+            f"📊 **데이터 수집 완료**\n\n"
+            f"{emoji} **출처:** {data_source}\n"
+            f"📈 **매출:** {base_revenue:.1f}억 원\n"
+            f"💰 **영업이익:** {fin_data['op']:.1f}억 원\n\n"
+            f"_{fin_data['description']}_\n\n"
+            f"위 데이터로 3가지 시나리오(Base/Bull/Bear) DCF를 생성합니다...",
+            parse_mode='Markdown'
+        )
+        
+        # ================================================================
+        # STEP 3: GENERATE DCF VALUATION
+        # ================================================================
         wood = WoodOrchestrator()
         
         # 엑셀 생성 (Blocking I/O) -> Executor 사용
         filepath, summary = await loop.run_in_executor(
-            None, wood.run_valuation, project_name, base_rev
+            None, 
+            wood.run_valuation, 
+            company_name, 
+            base_revenue,
+            data_source  # Pass data source for Excel attribution
         )
+        
+        # ================================================================
+        # STEP 4: SEND RESULTS
+        # ================================================================
         
         # 1. 요약 텍스트
         await update.message.reply_text(summary, parse_mode='Markdown')
@@ -232,11 +321,19 @@ async def run_dcf(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_document(
             document=open(filepath, 'rb'),
             filename=os.path.basename(filepath),
-            caption=f"📊 **{project_name} Valuation Package**"
+            caption=(
+                f"📊 **{company_name} DCF Valuation Package**\n\n"
+                f"✅ Big 4 회계법인 스타일 적용:\n"
+                f"• 파란색 = 입력값 (Assumptions)\n"
+                f"• 검은색 = 계산값 (Formulas)\n"
+                f"• 데이터 출처: {data_source}"
+            )
         )
 
     except Exception as e:
         await update.message.reply_text(f"❌ WOOD Error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         session.is_running = False
 
