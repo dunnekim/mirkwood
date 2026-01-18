@@ -14,6 +14,7 @@ import json
 import os
 import pandas as pd
 import numpy as np
+from typing import Dict, List, Optional
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
 from openpyxl.utils import get_column_letter
@@ -731,3 +732,4 @@ class WoodOrchestrator:
         print(f"   ✅ IB-Grade DCF Package Exported: {filepath}")
         
         return filepath, summary_text
+
