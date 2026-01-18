@@ -338,7 +338,87 @@ async def run_dcf(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session.is_running = False
 
 async def run_struct(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🏗️ **Structuring Engine**\n(Phase 4: OPM 및 메자닌 설계 모듈 탑재 예정)")
+    """
+    [OPM Engine] Hybrid securities valuation (RCPS, CB)
+    
+    Usage: /struct [기업명] [주가] [전환가]
+    """
+    from src.engines.wood.opm_engine import OPMCalculator
+    
+    args = context.args
+    if len(args) < 3:
+        await update.message.reply_text(
+            "🏗️ **OPM Structuring Engine**\n\n"
+            "**사용법:**\n"
+            "`/struct [기업명] [현재주가] [전환가]`\n\n"
+            "**예시:**\n"
+            "`/struct CompanyA 20000 25000`\n\n"
+            "**기능:**\n"
+            "• TF 모델 (Debt/Equity 분리 할인)\n"
+            "• IPO 조건부 리픽싱 시뮬레이션\n"
+            "• 구조화 옵션 제안",
+            parse_mode='Markdown'
+        )
+        return
+    
+    company_name = args[0]
+    stock_price = float(args[1])
+    conversion_price = float(args[2])
+    
+    await update.message.reply_text(
+        f"🏗️ **OPM Engine**\n"
+        f"'{company_name}' 하이브리드 증권 평가 중...\n\n"
+        f"• 주가: {stock_price:,.0f}원\n"
+        f"• 전환가: {conversion_price:,.0f}원"
+    )
+    
+    try:
+        loop = asyncio.get_running_loop()
+        calculator = OPMCalculator()
+        
+        # Quick valuation (default assumptions)
+        result = await loop.run_in_executor(
+            None,
+            calculator.quick_rcps_valuation,
+            company_name,
+            stock_price,
+            conversion_price,
+            50000,  # Face value per share (default)
+            10000,  # Number of shares (default)
+            3.0     # 3 years to maturity
+        )
+        
+        # Format response
+        response = f"""
+🏗️ **{company_name} OPM 평가 결과**
+
+**[TF Model - Split Discounting]**
+
+**Total Fair Value:** {result['total_value']:,.0f}원
+  • Host (Debt Component): {result['debt_component']:,.0f}원
+  • Option (Equity Component): {result['equity_component']:,.0f}원
+
+**Split Ratio:** {result['split_ratio']*100:.1f}% (Equity / Total)
+
+**Model Details:**
+• Lattice Steps: {result['lattice_steps']}
+• Final Conversion Price: {result['conversion_price_final']:,.0f}원
+• Model: {result['model']} (Tsiveriotis-Fernandes)
+
+**Interpretation:**
+• Debt Component는 {result['parameters']['rf']*100:.1f}% + {result['parameters']['cs']*100:.1f}% = {(result['parameters']['rf']+result['parameters']['cs'])*100:.1f}%로 할인
+• Equity Component는 {result['parameters']['rf']*100:.1f}% (Risk-Free)로 할인
+
+⚠️ *Professional OPM model with TF split discounting*
+"""
+        
+        await update.message.reply_text(response, parse_mode='Markdown')
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ OPM Error: {e}")
+        import traceback
+        traceback.print_exc()
+
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id

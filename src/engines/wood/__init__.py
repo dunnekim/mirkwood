@@ -40,6 +40,10 @@ from .schema import (
 from .generator import WoodReportGenerator
 from .interface import MirkInput, WoodOutput, WoodWorkflowStatus
 
+# OPM Components
+from .opm_engine import OPMCalculator, TFEngine, HybridSecurity, IPOScenario
+from .opm_excel import OPMExcelGenerator
+
 __all__ = [
     # DCF
     'WACCCalculator',
@@ -57,5 +61,12 @@ __all__ = [
     'WoodReportGenerator',
     'MirkInput',
     'WoodOutput',
-    'WoodWorkflowStatus'
+    'WoodWorkflowStatus',
+    
+    # OPM
+    'OPMCalculator',
+    'TFEngine',
+    'HybridSecurity',
+    'IPOScenario',
+    'OPMExcelGenerator'
 ]
