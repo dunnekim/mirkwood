@@ -609,9 +609,23 @@ with tab2:
     else:
         data = st.session_state['collected_data']
         company = st.session_state.get('company_name', 'Unknown')
+
+        # Robust numeric parsing (Streamlit Cloud-safe)
+        def _as_float(x, default=0.0):
+            try:
+                if x is None:
+                    return default
+                if isinstance(x, str):
+                    x = x.replace(",", "").strip()
+                return float(x)
+            except Exception:
+                return default
+
+        base_rev = _as_float(data.get("revenue"))
+        base_source = data.get("source", "Unknown")
         
         st.markdown(f"### Target: **{company}**")
-        st.markdown(f"**Base Revenue:** {data['revenue']:.1f}억 원 (Source: {data['source']})")
+        st.markdown(f"**Base Revenue:** {base_rev:.1f}억 원 (Source: {base_source})")
         
         st.divider()
         
@@ -756,13 +770,15 @@ with tab2:
             summary_text = result['summary']
             
             with col1:
-                st.metric("Data Source", data['source'])
+                st.metric("Data Source", data.get('source', 'Unknown'))
             
             with col2:
-                st.metric("Base Revenue", f"{data['revenue']:.1f}억")
+                st.metric("Base Revenue", f"{_as_float(data.get('revenue')):.1f}억")
             
             with col3:
-                st.metric("OP Margin", f"{(data['op']/data['revenue']*100):.1f}%" if data['revenue'] > 0 else "N/A")
+                rev = _as_float(data.get("revenue"))
+                op = _as_float(data.get("op"))
+                st.metric("OP Margin", f"{(op/rev*100):.1f}%" if rev > 0 else "N/A")
             
             st.markdown("---")
             
