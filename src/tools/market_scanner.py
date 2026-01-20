@@ -1,344 +1,388 @@
 """
-Market Scanner - Real-time Beta Calculation
+Market Scanner - Live Beta Calculation from Market Data
 
-[Purpose]
-Calculate beta from actual market data (not just using published numbers).
+[Quantitative Finance]
+This module calculates Adjusted Beta using:
+1. Historical price data (5 years monthly)
+2. Linear regression (Covariance/Variance method)
+3. Blume's Adjustment: Adj Beta = 0.67 * Raw Beta + 0.33
 
-[Method]
-1. Fetch historical prices (yfinance)
-2. Calculate log returns
-3. Linear regression (Stock returns vs Market returns)
-4. Apply Blume's adjustment: Adjusted Beta = (Raw Beta × 0.67) + (1.0 × 0.33)
-
-[IB Standard]
-This is how real investment banks calculate beta for valuation work.
-Bloomberg/Reuters betas are reference only - we build our own House View.
+[Data Source]
+- yfinance: Yahoo Finance API wrapper
+- Market Index: ^KS11 (KOSPI) for Korean stocks
 """
 
-import yfinance as yf
-import pandas as pd
+import logging
+import warnings
 import numpy as np
-from scipy import stats
-from typing import Dict, Optional, Tuple
+import pandas as pd
+from typing import Optional, Tuple
+from datetime import datetime, timedelta
+
+# Suppress yfinance warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+logging.getLogger('yfinance').setLevel(logging.ERROR)
+
+try:
+    import yfinance as yf
+except ImportError:
+    raise ImportError(
+        "yfinance is required for live beta calculation. "
+        "Install with: pip install yfinance"
+    )
 
 
 class MarketScanner:
     """
-    Market data scanner and beta calculator
+    Real-time market data scanner for beta calculation
+    
+    [Methodology]
+    - Uses 5 years of monthly adjusted close prices
+    - Regression: Beta = Cov(Stock, Market) / Var(Market)
+    - Blume's Adjustment for mean reversion
     
     [Korean Market]
-    - KOSPI stocks: ticker.KS (e.g., 005930.KS = Samsung)
-    - KOSDAQ stocks: ticker.KQ
-    - Market index: ^KS11 (KOSPI Composite)
+    - Default market index: ^KS11 (KOSPI)
+    - Ticker format: [6-digit code].KS (e.g., 005930.KS for Samsung)
     """
     
-    def __init__(self, market_index: str = "^KS11"):
+    def __init__(
+        self, 
+        market_index: str = "^KS11",
+        lookback_years: int = 5,
+        frequency: str = "1mo"
+    ):
         """
         Args:
-            market_index: Market index ticker (default: ^KS11 for KOSPI)
+            market_index: Market benchmark ticker (default: KOSPI)
+            lookback_years: Historical data period (default: 5 years)
+            frequency: Data frequency ('1d', '1wk', '1mo')
         """
         self.market_index = market_index
+        self.lookback_years = lookback_years
+        self.frequency = frequency
+        self.min_data_points = 24  # Minimum 2 years of monthly data
         
-        # Beta calculation modes
-        self.MODES = {
-            '5Y_MONTHLY': {'period': '5y', 'interval': '1mo', 'min_points': 40},
-            '2Y_WEEKLY': {'period': '2y', 'interval': '1wk', 'min_points': 70},
-            '1Y_DAILY': {'period': '1y', 'interval': '1d', 'min_points': 180}
-        }
+        # Cache for performance
+        self._market_returns_cache = None
+        self._cache_timestamp = None
+        
+        print(f"📡 MarketScanner initialized (Index: {market_index}, Lookback: {lookback_years}Y)")
     
-    def _get_ticker_symbol(self, company_code: str, exchange: str = 'KS') -> str:
+    def _normalize_korean_ticker(self, ticker: str) -> str:
         """
-        종목코드를 야후파이낸스 심볼로 변환
+        Normalize Korean stock tickers
+        
+        Examples:
+            "005930" -> "005930.KS"
+            "005930.KS" -> "005930.KS"
+            "AAPL" -> "AAPL" (US stocks unchanged)
         
         Args:
-            company_code: 6-digit stock code (e.g., '005930')
-            exchange: 'KS' (KOSPI) or 'KQ' (KOSDAQ)
+            ticker: Input ticker
         
         Returns:
-            Yahoo Finance ticker (e.g., '005930.KS')
+            Normalized ticker for yfinance
         """
-        # Remove any existing suffix
-        code = company_code.replace('.KS', '').replace('.KQ', '')
-        return f"{code}.{exchange}"
-    
-    def _try_both_exchanges(self, company_code: str, period: str, interval: str) -> Optional[pd.DataFrame]:
-        """
-        Try both KOSPI and KOSDAQ exchanges
+        if not ticker:
+            return ticker
         
-        Returns:
-            DataFrame or None
-        """
-        for exchange in ['KS', 'KQ']:
-            try:
-                ticker = self._get_ticker_symbol(company_code, exchange)
-                data = yf.download(
-                    ticker, 
-                    period=period, 
-                    interval=interval, 
-                    progress=False,
-                    show_errors=False
-                )
-                
-                if not data.empty and len(data) > 10:
-                    print(f"      ✅ Found on {exchange} exchange")
-                    return data
-            
-            except:
-                continue
+        # If it's a 6-digit code without suffix, add .KS
+        if ticker.isdigit() and len(ticker) == 6:
+            return f"{ticker}.KS"
         
-        return None
+        return ticker
     
-    def calculate_beta(
+    def _fetch_returns(
         self, 
-        company_code: str, 
-        mode: str = '5Y_MONTHLY'
-    ) -> Dict:
+        ticker: str, 
+        start_date: datetime, 
+        end_date: datetime
+    ) -> Optional[pd.Series]:
         """
-        Calculate beta using linear regression
-        
-        [Process]
-        1. Fetch historical prices (Stock + Market)
-        2. Calculate returns (log returns)
-        3. Linear regression: Stock returns ~ Market returns
-        4. Apply Blume's adjustment
+        Fetch historical returns for a ticker
         
         Args:
-            company_code: 6-digit Korean stock code (e.g., '005930')
-            mode: '5Y_MONTHLY', '2Y_WEEKLY', or '1Y_DAILY'
+            ticker: Stock ticker
+            start_date: Start date
+            end_date: End date
         
         Returns:
-            {
-                'raw_beta': float,
-                'adjusted_beta': float,
-                'r_squared': float,
-                'p_value': float,
-                'data_points': int,
-                'method': str,
-                'confidence': str ('High'/'Medium'/'Low')
-            }
+            Series of returns, or None if failed
         """
-        if mode not in self.MODES:
-            mode = '5Y_MONTHLY'
-        
-        config = self.MODES[mode]
-        period = config['period']
-        interval = config['interval']
-        min_points = config['min_points']
-        
-        print(f"   📈 MarketScanner: Calculating Beta for {company_code}")
-        print(f"      Mode: {mode} (Period: {period}, Interval: {interval})")
-        
         try:
-            # ============================================================
-            # 1. FETCH DATA (Stock + Market)
-            # ============================================================
-            
-            # Try to get stock data from both exchanges
-            stock_data = self._try_both_exchanges(company_code, period, interval)
-            
-            if stock_data is None or stock_data.empty:
-                print(f"      ❌ No data available for {company_code}")
-                return self._default_beta("No data available")
-            
-            # Fetch market index
-            market_data = yf.download(
-                self.market_index, 
-                period=period, 
-                interval=interval, 
+            # Download data
+            data = yf.download(
+                ticker, 
+                start=start_date, 
+                end=end_date, 
+                interval=self.frequency,
                 progress=False,
                 show_errors=False
             )
             
-            if market_data.empty:
-                print(f"      ❌ Market index data unavailable")
-                return self._default_beta("Market data unavailable")
+            if data.empty or len(data) < self.min_data_points:
+                logging.warning(
+                    f"Insufficient data for {ticker}: {len(data)} points "
+                    f"(minimum: {self.min_data_points})"
+                )
+                return None
             
-            # ============================================================
-            # 2. CALCULATE RETURNS
-            # ============================================================
+            # Calculate returns
+            if 'Adj Close' in data.columns:
+                prices = data['Adj Close']
+            elif 'Close' in data.columns:
+                prices = data['Close']
+            else:
+                logging.error(f"No price data found for {ticker}")
+                return None
             
-            # Get Adjusted Close prices
-            stock_prices = stock_data['Adj Close'] if 'Adj Close' in stock_data.columns else stock_data['Close']
-            market_prices = market_data['Adj Close'] if 'Adj Close' in market_data.columns else market_data['Close']
+            returns = prices.pct_change().dropna()
             
-            # Align dates (inner join)
-            aligned = pd.DataFrame({
-                'stock': stock_prices,
-                'market': market_prices
-            }).dropna()
+            if len(returns) < self.min_data_points:
+                return None
             
-            if len(aligned) < min_points:
-                print(f"      ⚠️ Insufficient data points: {len(aligned)} < {min_points}")
-                return self._default_beta(f"Insufficient data ({len(aligned)} points)")
-            
-            # Calculate percentage returns
-            stock_returns = aligned['stock'].pct_change().dropna()
-            market_returns = aligned['market'].pct_change().dropna()
-            
-            # Align returns
-            returns_df = pd.DataFrame({
-                'stock': stock_returns,
-                'market': market_returns
-            }).dropna()
-            
-            if len(returns_df) < min_points * 0.7:
-                print(f"      ⚠️ Too many NaN after returns: {len(returns_df)}")
-                return self._default_beta("Insufficient valid returns")
-            
-            # ============================================================
-            # 3. LINEAR REGRESSION
-            # ============================================================
-            
-            # Regression: Stock ~ Market
-            slope, intercept, r_value, p_value, std_err = stats.linregress(
-                returns_df['market'], 
-                returns_df['stock']
-            )
-            
-            raw_beta = slope
-            r_squared = r_value ** 2
-            
-            # ============================================================
-            # 4. ADJUSTED BETA (Blume's Method)
-            # ============================================================
-            
-            # Blume (1971): Betas tend to regress toward 1
-            # Adjusted Beta = (Raw Beta × 2/3) + (Market Beta × 1/3)
-            # Market Beta = 1.0
-            
-            adjusted_beta = (raw_beta * 0.67) + (1.0 * 0.33)
-            
-            # ============================================================
-            # 5. CONFIDENCE ASSESSMENT
-            # ============================================================
-            
-            confidence = "Low"
-            if r_squared >= 0.30 and p_value < 0.05:
-                confidence = "High"
-            elif r_squared >= 0.15 or p_value < 0.10:
-                confidence = "Medium"
-            
-            print(f"      📊 Raw Beta: {raw_beta:.3f}")
-            print(f"      📊 Adjusted Beta: {adjusted_beta:.3f} (Blume)")
-            print(f"      📊 R²: {r_squared:.3f}, p-value: {p_value:.4f}")
-            print(f"      📊 Data Points: {len(returns_df)}, Confidence: {confidence}")
-            
-            return {
-                'raw_beta': raw_beta,
-                'adjusted_beta': adjusted_beta,
-                'r_squared': r_squared,
-                'p_value': p_value,
-                'data_points': len(returns_df),
-                'method': mode,
-                'confidence': confidence,
-                'intercept': intercept,
-                'std_error': std_err,
-                'success': True
-            }
+            return returns
         
         except Exception as e:
-            print(f"      ❌ Beta calculation error: {e}")
-            return self._default_beta(f"Calculation error: {str(e)}")
+            logging.warning(f"Failed to fetch data for {ticker}: {e}")
+            return None
     
-    def _default_beta(self, reason: str) -> Dict:
+    def _get_market_returns(self) -> Optional[pd.Series]:
         """
-        Return default beta when calculation fails
-        
-        Args:
-            reason: Failure reason
+        Get market index returns (with caching)
         
         Returns:
-            Default beta result (1.0)
+            Series of market returns
         """
-        print(f"      ⚠️ Using Default Beta (1.0): {reason}")
+        # Check cache (valid for 1 hour)
+        if self._market_returns_cache is not None:
+            if self._cache_timestamp and \
+               (datetime.now() - self._cache_timestamp).seconds < 3600:
+                return self._market_returns_cache
         
-        return {
-            'raw_beta': 1.0,
-            'adjusted_beta': 1.0,
-            'r_squared': 0.0,
-            'p_value': 1.0,
-            'data_points': 0,
-            'method': 'default',
-            'confidence': 'Default',
-            'success': False,
-            'reason': reason
-        }
+        # Fetch fresh data
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365 * self.lookback_years)
+        
+        market_returns = self._fetch_returns(
+            self.market_index, 
+            start_date, 
+            end_date
+        )
+        
+        if market_returns is not None:
+            self._market_returns_cache = market_returns
+            self._cache_timestamp = datetime.now()
+        
+        return market_returns
+    
+    def _calculate_raw_beta(
+        self, 
+        stock_returns: pd.Series, 
+        market_returns: pd.Series
+    ) -> Optional[float]:
+        """
+        Calculate raw beta using covariance method
+        
+        Beta = Cov(Stock, Market) / Var(Market)
+        
+        Args:
+            stock_returns: Stock return series
+            market_returns: Market return series
+        
+        Returns:
+            Raw beta, or None if calculation fails
+        """
+        try:
+            # Align data (use intersection of dates)
+            aligned = pd.concat([stock_returns, market_returns], axis=1, join='inner')
+            aligned.columns = ['stock', 'market']
+            aligned = aligned.dropna()
+            
+            if len(aligned) < self.min_data_points:
+                logging.warning(
+                    f"Insufficient aligned data: {len(aligned)} points "
+                    f"(minimum: {self.min_data_points})"
+                )
+                return None
+            
+            # Calculate beta
+            covariance = aligned['stock'].cov(aligned['market'])
+            market_variance = aligned['market'].var()
+            
+            if market_variance == 0:
+                logging.error("Market variance is zero, cannot calculate beta")
+                return None
+            
+            raw_beta = covariance / market_variance
+            
+            return raw_beta
+        
+        except Exception as e:
+            logging.error(f"Beta calculation failed: {e}")
+            return None
+    
+    def _apply_blume_adjustment(self, raw_beta: float) -> float:
+        """
+        Apply Blume's Adjustment for beta mean reversion
+        
+        Adjusted Beta = (2/3) * Raw Beta + (1/3) * 1.0
+        
+        [Academic Basis]
+        Blume (1971, 1975): Betas tend to revert toward market beta (1.0)
+        Industry standard: Bloomberg, FactSet use this adjustment
+        
+        Args:
+            raw_beta: Raw regression beta
+        
+        Returns:
+            Adjusted beta
+        """
+        adjusted_beta = (raw_beta * 0.67) + (1.0 * 0.33)
+        return adjusted_beta
     
     def get_beta(
         self, 
-        company_code: str, 
-        mode: str = '5Y_MONTHLY'
-    ) -> float:
+        ticker: str, 
+        apply_blume: bool = True,
+        fallback_beta: float = 1.0
+    ) -> Tuple[float, str]:
         """
-        Get adjusted beta (convenience method)
+        Get adjusted beta for a stock ticker
+        
+        [Process]
+        1. Normalize ticker (Korean format)
+        2. Fetch stock and market returns
+        3. Calculate raw beta via regression
+        4. Apply Blume's adjustment (optional)
+        5. Return fallback if any step fails
         
         Args:
-            company_code: Stock code
-            mode: Calculation mode
+            ticker: Stock ticker (e.g., "005930" or "005930.KS")
+            apply_blume: Apply Blume's adjustment (default: True)
+            fallback_beta: Fallback value if calculation fails
         
         Returns:
-            Adjusted beta (float)
+            (beta, source): Beta value and source indicator
+                source: "Live", "Fallback"
         """
-        result = self.calculate_beta(company_code, mode)
-        return result['adjusted_beta']
+        # Normalize ticker
+        normalized_ticker = self._normalize_korean_ticker(ticker)
+        
+        # Get market returns
+        market_returns = self._get_market_returns()
+        if market_returns is None:
+            logging.warning(
+                f"Failed to fetch market data for {self.market_index}, "
+                f"using fallback beta: {fallback_beta}"
+            )
+            return fallback_beta, "Fallback"
+        
+        # Get stock returns
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365 * self.lookback_years)
+        
+        stock_returns = self._fetch_returns(
+            normalized_ticker, 
+            start_date, 
+            end_date
+        )
+        
+        if stock_returns is None:
+            logging.warning(
+                f"Failed to fetch stock data for {normalized_ticker}, "
+                f"using fallback beta: {fallback_beta}"
+            )
+            return fallback_beta, "Fallback"
+        
+        # Calculate raw beta
+        raw_beta = self._calculate_raw_beta(stock_returns, market_returns)
+        
+        if raw_beta is None:
+            logging.warning(
+                f"Beta calculation failed for {normalized_ticker}, "
+                f"using fallback beta: {fallback_beta}"
+            )
+            return fallback_beta, "Fallback"
+        
+        # Apply Blume's adjustment
+        if apply_blume:
+            adjusted_beta = self._apply_blume_adjustment(raw_beta)
+            logging.info(
+                f"✅ {normalized_ticker}: Raw Beta = {raw_beta:.3f}, "
+                f"Adjusted Beta = {adjusted_beta:.3f}"
+            )
+        else:
+            adjusted_beta = raw_beta
+            logging.info(f"✅ {normalized_ticker}: Raw Beta = {raw_beta:.3f}")
+        
+        return adjusted_beta, "Live"
     
-    def get_current_price(self, company_code: str) -> Optional[float]:
+    def get_beta_batch(
+        self, 
+        tickers: list, 
+        apply_blume: bool = True,
+        fallback_beta: float = 1.0
+    ) -> dict:
         """
-        Get current stock price
+        Get betas for multiple tickers (sequential processing)
         
         Args:
-            company_code: Stock code
+            tickers: List of ticker symbols
+            apply_blume: Apply Blume's adjustment
+            fallback_beta: Fallback value
         
         Returns:
-            Current price or None
+            {ticker: {"beta": float, "source": str}}
         """
-        try:
-            # Try both exchanges
-            for exchange in ['KS', 'KQ']:
-                ticker = self._get_ticker_symbol(company_code, exchange)
-                stock = yf.Ticker(ticker)
-                info = stock.info
-                
-                # Try different price fields
-                for field in ['currentPrice', 'regularMarketPrice', 'previousClose']:
-                    if field in info and info[field]:
-                        price = float(info[field])
-                        if price > 0:
-                            print(f"      💰 Current Price: {price:,.0f}원 ({exchange})")
-                            return price
-            
-            return None
+        results = {}
         
-        except Exception as e:
-            print(f"      ⚠️ Price fetch error: {e}")
-            return None
+        for ticker in tickers:
+            if not ticker:
+                continue
+            
+            beta, source = self.get_beta(ticker, apply_blume, fallback_beta)
+            results[ticker] = {
+                "beta": beta,
+                "source": source
+            }
+        
+        return results
+
+
+# ==============================================================================
+# TESTING UTILITIES
+# ==============================================================================
+
+def test_market_scanner():
+    """
+    Test MarketScanner with sample Korean stocks
+    """
+    print("=" * 70)
+    print("🧪 MarketScanner Test - Korean Market")
+    print("=" * 70)
     
-    def get_market_cap(self, company_code: str) -> Optional[float]:
-        """
-        Get market capitalization
-        
-        Args:
-            company_code: Stock code
-        
-        Returns:
-            Market cap in million KRW or None
-        """
-        try:
-            for exchange in ['KS', 'KQ']:
-                ticker = self._get_ticker_symbol(company_code, exchange)
-                stock = yf.Ticker(ticker)
-                info = stock.info
-                
-                if 'marketCap' in info and info['marketCap']:
-                    # yfinance returns market cap in company's currency (KRW for Korean stocks)
-                    mc_krw = float(info['marketCap'])
-                    mc_mil = mc_krw / 1000000  # Convert to million KRW
-                    
-                    print(f"      📊 Market Cap: {mc_mil:,.0f}백만원 ({exchange})")
-                    return mc_mil
-            
-            return None
-        
-        except Exception as e:
-            print(f"      ⚠️ Market cap fetch error: {e}")
-            return None
+    scanner = MarketScanner()
+    
+    # Test cases: (ticker, expected_range)
+    test_cases = [
+        ("005930", "Samsung Electronics - should be around 0.9-1.2"),
+        ("000660", "SK Hynix - semiconductor, volatile, expect > 1.0"),
+        ("035720", "Kakao - tech, high beta expected"),
+        ("INVALID", "Invalid ticker - should use fallback"),
+    ]
+    
+    for ticker, description in test_cases:
+        print(f"\n📊 Testing: {ticker} ({description})")
+        beta, source = scanner.get_beta(ticker)
+        print(f"   Result: Beta = {beta:.3f}, Source = {source}")
+    
+    print("\n" + "=" * 70)
+    print("✅ Test completed")
+    print("=" * 70)
+
+
+if __name__ == "__main__":
+    # Run test if executed directly
+    test_market_scanner()

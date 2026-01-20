@@ -26,7 +26,8 @@ from src.agents.alpha_chief import AlphaChief
 from src.utils.llm_handler import LLMHandler
 
 # [Engines]
-from src.engines.orchestrator import WoodOrchestrator  # WOOD DCF Engine
+# from src.engines.orchestrator import WoodOrchestrator  # WOOD V1 DCF Engine (Legacy - Preserved)
+from src.engines.wood.orchestrator_v2 import WoodOrchestratorV2  # WOOD V2 Engine (Nexflex Std.)
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -292,16 +293,16 @@ async def run_dcf(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📈 **매출:** {base_revenue:.1f}억 원\n"
             f"💰 **영업이익:** {fin_data['op']:.1f}억 원\n\n"
             f"_{fin_data['description']}_\n\n"
-            f"위 데이터로 3가지 시나리오(Base/Bull/Bear) DCF를 생성합니다...",
+            f"🌲 **WOOD V2**: '{company_name}' 정밀 밸류에이션(Nexflex Std.) 수행 중...",
             parse_mode='Markdown'
         )
         
         # ================================================================
-        # STEP 3: GENERATE DCF VALUATION
+        # STEP 3: GENERATE DCF VALUATION (WOOD V2)
         # ================================================================
-        wood = WoodOrchestrator()
+        wood = WoodOrchestratorV2()
         
-        # 엑셀 생성 (Blocking I/O) -> Executor 사용
+        # 엑셀 생성 (CPU-bound, Blocking I/O) -> Executor 사용
         filepath, summary = await loop.run_in_executor(
             None, 
             wood.run_valuation, 
@@ -326,7 +327,8 @@ async def run_dcf(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"✅ Big 4 회계법인 스타일 적용:\n"
                 f"• 파란색 = 입력값 (Assumptions)\n"
                 f"• 검은색 = 계산값 (Formulas)\n"
-                f"• 데이터 출처: {data_source}"
+                f"• 데이터 출처: {data_source}\n\n"
+                f"📑 **(Detailed 9-Sheet Model included)**"
             )
         )
 
