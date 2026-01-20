@@ -16,30 +16,60 @@ from io import StringIO, BytesIO
 import os
 import sys
 from datetime import datetime
+import tempfile
+from typing import Optional, Dict, Any
+import re
+import zipfile
 
 # Path Setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
-# Import MIRKWOOD components (lazy loading for API dependencies)
+# Import MIRKWOOD components (prefer V2, fallback to V1)
+# NOTE: We keep V1 as fallback for compatibility, but default UI uses V2/V3.
+WoodOrchestrator = None
+WoodOrchestratorV2 = None
 try:
-    from src.engines.orchestrator import WoodOrchestrator
-except ImportError as e:
-    st.error(f"⚠️ Import Error: {e}")
+    from src.engines.wood.orchestrator_v2 import WoodOrchestratorV2  # WOOD V2 (preferred)
+except Exception:
+    WoodOrchestratorV2 = None
+
+try:
+    from src.engines.orchestrator import WoodOrchestrator  # WOOD V1 (fallback)
+except Exception:
+    WoodOrchestrator = None
+
+if WoodOrchestratorV2 is None and WoodOrchestrator is None:
+    st.error("⚠️ WOOD engine import failed: neither `WoodOrchestratorV2` nor `WoodOrchestrator` is available.")
     st.stop()
 
 # Check API keys before importing SmartIngestor
-def check_api_keys():
-    """Check if required API keys are set"""
+def _normalize_env_keys():
+    """
+    Normalize env var naming across modules.
+
+    - Some modules expect DART_API_KEY
+    - Some environments store OPENDART_API_KEY
+
+    If OPENDART_API_KEY exists but DART_API_KEY doesn't, mirror it.
+    """
+    if not os.getenv("DART_API_KEY") and os.getenv("OPENDART_API_KEY"):
+        os.environ["DART_API_KEY"] = os.getenv("OPENDART_API_KEY")  # pragma: no cover
+
+
+def check_api_keys(require_openai: bool = True, require_dart: bool = True):
+    """Check if required API keys are set (supports DART/OPENDART aliasing)."""
+    _normalize_env_keys()
+
     missing_keys = []
-    
-    if not os.getenv("OPENAI_API_KEY"):
+
+    if require_openai and not os.getenv("OPENAI_API_KEY"):
         missing_keys.append("OPENAI_API_KEY")
-    
-    if not os.getenv("DART_API_KEY"):
-        missing_keys.append("DART_API_KEY")
-    
+
+    if require_dart and not (os.getenv("DART_API_KEY") or os.getenv("OPENDART_API_KEY")):
+        missing_keys.append("DART_API_KEY (or OPENDART_API_KEY)")
+
     return missing_keys
 
 # Lazy import function for SmartIngestor
@@ -52,6 +82,103 @@ def get_smart_ingestor():
         st.error(f"Failed to initialize SmartIngestor: {e}")
         st.info("Please set OPENAI_API_KEY and DART_API_KEY in Streamlit secrets")
         return None
+
+
+@st.cache_resource(show_spinner=False)
+def get_wood_orchestrator(use_live_beta: bool = True):
+    """Cached WOOD orchestrator instance (V2 preferred)."""
+    if WoodOrchestratorV2 is not None:
+        return WoodOrchestratorV2(use_live_beta=use_live_beta)
+    # Fallback to V1
+    return WoodOrchestrator()
+
+
+def get_dart_analyst():
+    """Lazy load DartAnalyst (LTM-capable)."""
+    _normalize_env_keys()
+    try:
+        from src.tools.dart_analyst import DartAnalyst
+        return DartAnalyst()
+    except Exception as e:
+        st.error(f"Failed to initialize DartAnalyst: {e}")
+        return None
+
+
+def get_zulu_scout():
+    """Lazy load ZuluScout (entity resolution)."""
+    try:
+        from src.agents.zulu_scout import ZuluScout
+        return ZuluScout()
+    except Exception as e:
+        st.error(f"Failed to initialize ZuluScout: {e}")
+        return None
+
+
+@st.cache_data(show_spinner=False, ttl=5)
+def _read_text_tail(path: str, max_chars: int = 8000) -> str:
+    """Read tail of a text file safely (cached)."""
+    if not path or not os.path.exists(path):
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        return content[-max_chars:] if len(content) > max_chars else content
+    except Exception:
+        return ""
+
+
+def _extract_dcf_info_from_wood_v2_summary(summary_text: str) -> Dict[str, Any]:
+    """
+    Best-effort parse of WOOD V2 summary text to provide ALPHA-compatible dcf_info.
+
+    Expected patterns (from `WoodOrchestratorV2._generate_summary_text`):
+    - Enterprise Value Range: <min>~<max>억 원
+    - (Base Case: <base>억)
+    - [Base] EV: <ev>억 (WACC <wacc>%)
+
+    Returns dict with keys used by `AlphaVP._synthesize_valuation_football_field`:
+    - ev_min, ev_max, ev_base, wacc
+    """
+    txt = summary_text or ""
+    info: Dict[str, Any] = {}
+
+    # EV range
+    m = re.search(r"Enterprise Value Range:\s*([0-9,.]+)\s*~\s*([0-9,.]+)\s*억", txt)
+    if m:
+        try:
+            info["ev_min"] = float(m.group(1).replace(",", ""))
+            info["ev_max"] = float(m.group(2).replace(",", ""))
+        except Exception:
+            pass
+
+    # Base case EV (parenthesis line)
+    m = re.search(r"\(Base Case:\s*([0-9,.]+)\s*억\)", txt)
+    if m:
+        try:
+            info["ev_base"] = float(m.group(1).replace(",", ""))
+        except Exception:
+            pass
+
+    # Base scenario WACC (best effort: try Base, else first scenario line)
+    m = re.search(r"\*\*\[Base\]\*\*\s*EV:\s*\*\*([0-9,.]+)억\*\*\s*\(WACC\s*([0-9.]+)%\)", txt)
+    if not m:
+        m = re.search(r"\*\*\[[^\]]+\]\*\*\s*EV:\s*\*\*([0-9,.]+)억\*\*\s*\(WACC\s*([0-9.]+)%\)", txt)
+    if m:
+        try:
+            if "ev_base" not in info:
+                info["ev_base"] = float(m.group(1).replace(",", ""))
+            info["wacc"] = float(m.group(2))
+        except Exception:
+            pass
+
+    return info
+
+
+def _safe_float(v: Any, default: float = 0.0) -> float:
+    try:
+        return float(v)
+    except Exception:
+        return default
 
 # ==============================================================================
 # 🔒 ACCESS CONTROL (Mellon Gate)
@@ -112,6 +239,19 @@ with st.sidebar:
     
     st.divider()
     
+    st.markdown("**🧩 Engine Settings**")
+    use_live_beta = st.toggle("Use Live Beta (MarketScanner)", value=True, help="If yfinance is unavailable, engine will degrade gracefully.")
+
+    with st.expander("🩺 System Health", expanded=False):
+        missing = check_api_keys(require_openai=False, require_dart=False)
+        st.caption("Environment")
+        st.write(f"- OPENAI_API_KEY: {'✅' if os.getenv('OPENAI_API_KEY') else '❌'}")
+        st.write(f"- DART_API_KEY/OPENDART_API_KEY: {'✅' if (os.getenv('DART_API_KEY') or os.getenv('OPENDART_API_KEY')) else '❌'}")
+        st.write(f"- WOOD V2 Available: {'✅' if WoodOrchestratorV2 is not None else '❌'}")
+        st.write(f"- WOOD V1 Available: {'✅' if WoodOrchestrator is not None else '❌'}")
+        if missing:
+            st.warning(f"Missing (optional for some tabs): {', '.join(missing)}")
+
     # Projection Settings
     st.markdown("**📊 Projection Settings**")
     
@@ -151,16 +291,19 @@ with st.sidebar:
 # MAIN CONTENT
 # ==============================================================================
 
+tab1 = tab2 = tab3 = tab4 = tab5 = tab6 = None  # predeclare for linters
+
 st.title("🌲 MIRKWOOD Deal OS")
 st.markdown("**Enterprise Valuation & Transaction Services Platform**")
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Data Collection", 
-    "📈 DCF Valuation", 
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📊 Data Collection",
+    "📈 DCF Valuation",
     "🏗️ OPM Structuring",
     "🌲 Transaction Services",
-    "📝 Notes"
+    "📝 Notes",
+    "🚀 Deal Pipeline (/run)"
 ])
 
 # ==============================================================================
@@ -272,14 +415,18 @@ with tab1:
         
         col1, col2, col3 = st.columns(3)
         
+        # Handle None values safely
+        revenue = data.get('revenue') or 0
+        op = data.get('op') or 0
+        
         with col1:
-            st.metric("Revenue", f"{data.get('revenue', 0):.1f}억 원")
+            st.metric("Revenue", f"{float(revenue):.1f}억 원")
         
         with col2:
-            st.metric("Operating Profit", f"{data.get('op', 0):.1f}억 원")
+            st.metric("Operating Profit", f"{float(op):.1f}억 원")
         
         with col3:
-            margin = (data.get('op', 0) / data.get('revenue', 1)) * 100 if data.get('revenue', 0) > 0 else 0
+            margin = (float(op) / float(revenue)) * 100 if float(revenue) > 0 else 0
             st.metric("OP Margin", f"{margin:.1f}%")
         
         st.info(f"""
@@ -287,6 +434,144 @@ with tab1:
         **📝 Description:** {data.get('description', 'N/A')}  
         **✅ Confidence:** {confidence}
         """)
+
+        # ------------------------------------------------------------------
+        # 🩻 X-RAY (LTM) Card: ZuluScout.resolve_entity → DartAnalyst.get_ltm_financials
+        # ------------------------------------------------------------------
+        st.markdown("---")
+        st.subheader("🩻 X-RAY Financials (LTM)")
+        st.caption("ZuluScout로 엔티티를 정규화한 뒤, DartAnalyst로 LTM(최근 12개월) 기준 수익력을 산출합니다.")
+
+        ltm_target = st.text_input(
+            "X-RAY Target (for LTM)",
+            value=st.session_state.get("company_name", ""),
+            placeholder="e.g., Target_Co",
+            help="가능하면 공식 법인명 입력 (ZuluScout가 보정).",
+            key="xray_ltm_target"
+        )
+
+        col_a, col_b, col_c = st.columns([1, 1, 1])
+        with col_a:
+            unit_mode = st.selectbox(
+                "Display Unit",
+                options=["십억 원", "억 원"],
+                index=0,
+                help="DartAnalyst 내부 값은 억 원 기반입니다. 표시 단위만 변환합니다.",
+                key="xray_ltm_unit"
+            )
+
+        with col_b:
+            manual_corp_code = st.text_input(
+                "Corp Code (Optional)",
+                value="",
+                placeholder="8-digit corp code",
+                help="ZuluScout가 DART 코드를 못 찾을 때만 입력하세요.",
+                key="xray_ltm_corp_code"
+            )
+
+        with col_c:
+            run_ltm = st.button("🧾 Run X-RAY (LTM)", use_container_width=True)
+
+        def _fmt_money(v_uk: float) -> str:
+            # v_uk: 억 원
+            try:
+                v = float(v_uk or 0)
+            except Exception:
+                v = 0.0
+            if unit_mode == "십억 원":
+                return f"{(v/10.0):,.1f}"
+            return f"{v:,.1f}"
+
+        if run_ltm:
+            if not ltm_target and not manual_corp_code:
+                st.warning("회사명 또는 Corp Code 중 하나는 입력되어야 합니다.")
+            else:
+                missing = check_api_keys(require_openai=True, require_dart=True)
+                if missing and not manual_corp_code:
+                    st.error(f"❌ Missing API Keys: {', '.join(missing)}")
+                    st.info("ZuluScout(DART 코드 탐색) 및 DART 조회에는 키가 필요합니다. Corp Code를 직접 넣으면 일부 과정을 우회할 수 있습니다.")
+                else:
+                    with st.spinner("Running X-RAY LTM..."):
+                        try:
+                            zulu = get_zulu_scout()
+                            analyst = get_dart_analyst()
+
+                            corp_code = manual_corp_code.strip() if manual_corp_code else None
+                            entity_info = None
+
+                            if not corp_code:
+                                if not zulu:
+                                    st.error("ZuluScout 초기화 실패")
+                                    st.stop()
+                                entity_info = zulu.resolve_entity(ltm_target.strip())
+                                corp_code = entity_info.get("dart_code")
+
+                            if not corp_code:
+                                st.error("DART Corp Code를 찾지 못했습니다. (Corp Code를 직접 입력해 주세요)")
+                                st.stop()
+
+                            if not analyst:
+                                st.error("DartAnalyst 초기화 실패")
+                                st.stop()
+
+                            fin = analyst.get_ltm_financials(corp_code)
+                            if not fin:
+                                st.error("LTM 재무 데이터 수집에 실패했습니다. (DART 응답/기간 이슈 가능)")
+                                st.stop()
+
+                            st.session_state["xray_ltm"] = {
+                                "entity": entity_info,
+                                "corp_code": corp_code,
+                                "financials": fin,
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                            st.success("✅ X-RAY LTM 완료")
+                            st.rerun()
+
+                        except Exception as e:
+                            import traceback
+                            st.session_state["last_error"] = traceback.format_exc()
+                            st.error(f"❌ X-RAY LTM Error: {e}")
+                            with st.expander("🔍 Error Details"):
+                                st.code(st.session_state["last_error"])
+
+        if "xray_ltm" in st.session_state:
+            fin = st.session_state["xray_ltm"]["financials"]
+            entity = st.session_state["xray_ltm"].get("entity") or {}
+
+            st.markdown("#### [Financial Analysis (LTM Basis)]")
+            st.caption(f"Period: {fin.get('period', 'N/A')} | Method: {fin.get('ltm_method', 'N/A')} | FS: {fin.get('fs_type', 'N/A')}")
+
+            revenue = fin.get("revenue_bn", 0) or 0
+            ebitda = fin.get("ebitda_bn", 0) or 0
+            op_bn = fin.get("op_bn", 0) or 0
+            ni = fin.get("net_income_bn", 0) or 0
+
+            roe = fin.get("roe", 0) or 0
+            debt_ratio = fin.get("debt_ratio", 0) or 0
+            ebitda_margin = fin.get("ebitda_margin", 0) or 0
+
+            table_rows = [
+                {"Item": "Revenue", "Value": _fmt_money(revenue), "Note": unit_mode},
+                {"Item": "EBITDA", "Value": _fmt_money(ebitda), "Note": f"Margin {ebitda_margin:.1f}% {fin.get('ebitda_method', '')}".strip()},
+                {"Item": "Op. Profit", "Value": _fmt_money(op_bn), "Note": "LTM"},
+                {"Item": "Net Income", "Value": _fmt_money(ni), "Note": "LTM"},
+                {"Item": "ROE", "Value": f"{roe:.1f}%", "Note": "LTM basis (simplified)"},
+                {"Item": "Debt Ratio", "Value": f"{debt_ratio:.1f}%", "Note": "Liabilities / Equity"},
+            ]
+
+            st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+
+            with st.expander("🔎 Entity Resolution Details"):
+                st.json({
+                    "query": entity.get("query"),
+                    "official_name": entity.get("official_name"),
+                    "dart_code": entity.get("dart_code"),
+                    "stock_code": entity.get("stock_code"),
+                    "is_listed": entity.get("is_listed"),
+                    "confidence": entity.get("confidence"),
+                    "dart_name": entity.get("dart_name"),
+                })
         
         # Historical data upload (optional)
         st.markdown("---")
@@ -353,31 +638,109 @@ with tab2:
         st.divider()
         
         # Run DCF
-        if st.button("🚀 Run DCF Valuation", use_container_width=True, type="primary"):
-            with st.spinner("Running IB-Grade DCF Model..."):
-                try:
-                    orchestrator = WoodOrchestrator()
-                    
-                    filepath, summary = orchestrator.run_valuation(
-                        project_name=company,
-                        base_revenue=data['revenue'],
-                        data_source=data['source']
-                    )
-                    
-                    st.session_state['dcf_result'] = {
-                        'filepath': filepath,
-                        'summary': summary,
-                        'timestamp': datetime.now().isoformat()
-                    }
-                    
-                    st.success("✅ DCF Valuation Completed!")
-                    st.rerun()
-                
-                except Exception as e:
-                    st.error(f"❌ DCF Error: {e}")
-                    import traceback
-                    with st.expander("🔍 Error Details"):
-                        st.code(traceback.format_exc())
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            if st.button("🚀 Run DCF (WOOD V2)", use_container_width=True, type="primary"):
+                with st.spinner("Running WOOD V2 (Nexflex Std.)..."):
+                    try:
+                        orchestrator = get_wood_orchestrator(use_live_beta=use_live_beta)
+
+                        filepath, summary = orchestrator.run_valuation(
+                            project_name=company,
+                            base_revenue=float(data.get('revenue') or 0),
+                            data_source=str(data.get('source') or "User Input")
+                        )
+
+                        st.session_state['dcf_result'] = {
+                            'filepath': filepath,
+                            'summary': summary,
+                            'timestamp': datetime.now().isoformat(),
+                            'engine': 'WOOD_V2',
+                            'project_name': company,
+                            'dcf_info': _extract_dcf_info_from_wood_v2_summary(summary),
+                        }
+
+                        st.success("✅ DCF Valuation Completed (WOOD V2)")
+                        st.rerun()
+
+                    except Exception as e:
+                        import traceback
+                        st.session_state["last_error"] = traceback.format_exc()
+                        st.error(f"❌ DCF Error: {e}")
+                        with st.expander("🔍 Error Details"):
+                            st.code(st.session_state["last_error"])
+
+        with c2:
+            if st.button("📊 Build Live Excel (WOOD V3)", use_container_width=True):
+                with st.spinner("Building WOOD V3 Live (Formula-Linked) model..."):
+                    try:
+                        from src.engines.wood.exporter_v3 import LiveExcelBuilder
+
+                        assumptions = {
+                            "tax_rate": 0.22,
+                            "terminal_growth": float(terminal_growth) / 100.0,
+                            "projection_years": int(projection_years),
+                            # WACC inputs (fallback defaults; can be edited in Excel)
+                            "risk_free_rate": 0.035,
+                            "market_risk_premium": 0.08,
+                            "beta": 1.0,
+                            "cost_of_debt": 0.045,
+                        }
+
+                        scenarios = {
+                            "Base": {"revenue_growth": float(base_growth), "ebit_margin": float(base_margin)},
+                            "Bull": {"revenue_growth": float(bull_growth), "ebit_margin": float(bull_margin)},
+                            "Bear": {"revenue_growth": float(bear_growth), "ebit_margin": float(bear_margin)},
+                        }
+
+                        # Optional historical_data from upload (best-effort)
+                        historical_data = None
+                        if 'historical_data' in st.session_state:
+                            try:
+                                df_hist = st.session_state['historical_data']
+                                # Accept either dict-like already or attempt minimal conversion
+                                if isinstance(df_hist, pd.DataFrame):
+                                    # Heuristic: if it has 'Account' column and year columns
+                                    historical_data = {"raw": df_hist.to_dict(orient="list")}
+                            except Exception:
+                                historical_data = None
+
+                        # Build temp file and read bytes for download
+                        reports_dir = os.path.join(project_root, 'vault', 'reports')
+                        os.makedirs(reports_dir, exist_ok=True)
+                        filename = f"{company}_DCF_WOOD_V3_LIVE_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                        filepath = os.path.join(reports_dir, filename)
+
+                        builder = LiveExcelBuilder(filepath)
+                        builder.build(
+                            project_name=company,
+                            base_revenue=float(data.get('revenue') or 0),
+                            assumptions=assumptions,
+                            scenarios=scenarios,
+                            historical_data=historical_data
+                        )
+
+                        with open(filepath, "rb") as f:
+                            excel_bytes = f.read()
+
+                        st.session_state['dcf_v3_live'] = {
+                            "filepath": filepath,
+                            "filename": filename,
+                            "bytes": excel_bytes,
+                            "timestamp": datetime.now().isoformat(),
+                            "engine": "WOOD_V3_LIVE",
+                            "project_name": company,
+                        }
+
+                        st.success("✅ Live Excel model built (WOOD V3)")
+                        st.rerun()
+
+                    except Exception as e:
+                        import traceback
+                        st.session_state["last_error"] = traceback.format_exc()
+                        st.error(f"❌ WOOD V3 Build Error: {e}")
+                        with st.expander("🔍 Error Details"):
+                            st.code(st.session_state["last_error"])
         
         # Display results
         if 'dcf_result' in st.session_state:
@@ -446,6 +809,20 @@ with tab2:
                 - 🎨 Professional Big 4 formatting
                 - 📐 Borders and thousand separators
                 """)
+
+        # WOOD V3 Live download (separate from V2 run)
+        if 'dcf_v3_live' in st.session_state:
+            live = st.session_state['dcf_v3_live']
+            st.divider()
+            st.markdown("### 🧮 WOOD V3 Live Model (Formula-Linked)")
+            st.caption("Assumptions are editable in Excel; valuation updates automatically via formulas.")
+            st.download_button(
+                label="📥 Download Live Excel (WOOD V3)",
+                data=live["bytes"],
+                file_name=live["filename"],
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
             
             st.markdown("---")
             
@@ -702,10 +1079,11 @@ with tab3:
                     st.rerun()
                 
                 except Exception as e:
-                    st.error(f"❌ OPM Error: {e}")
                     import traceback
+                    st.session_state["last_error"] = traceback.format_exc()
+                    st.error(f"❌ OPM Error: {e}")
                     with st.expander("Error Details"):
-                        st.code(traceback.format_exc())
+                        st.code(st.session_state["last_error"])
         
         # Display results
         if 'opm_result' in st.session_state:
@@ -819,29 +1197,36 @@ with tab4:
         
         if st.button("🌲 Run Transaction Services", use_container_width=True, type="primary"):
             with st.spinner("Loading issue library..."):
-                # Load issues
-                issues = get_issue_library(sector)
-                
-                # Create Forest Map
-                forest = ForestMap(deal_name=ts_deal_name)
-                forest.issues = issues
-                forest.calculate_metrics()
-                
-                # Generate reports
-                generator = WoodReportGenerator()
-                md_report = generator.generate_forest_map_md(forest)
-                summary = generator.generate_summary_text(forest)
-                csv_bridge = generator.generate_bridge_csv(forest.issues)
-                
-                st.session_state['ts_result'] = {
-                    'forest': forest,
-                    'md_report': md_report,
-                    'summary': summary,
-                    'csv_bridge': csv_bridge
-                }
-                
-                st.success("✅ Transaction Services Complete!")
-                st.rerun()
+                try:
+                    # Load issues
+                    issues = get_issue_library(sector)
+                    
+                    # Create Forest Map
+                    forest = ForestMap(deal_name=ts_deal_name)
+                    forest.issues = issues
+                    forest.calculate_metrics()
+                    
+                    # Generate reports
+                    generator = WoodReportGenerator()
+                    md_report = generator.generate_forest_map_md(forest)
+                    summary = generator.generate_summary_text(forest)
+                    csv_bridge = generator.generate_bridge_csv(forest.issues)
+                    
+                    st.session_state['ts_result'] = {
+                        'forest': forest,
+                        'md_report': md_report,
+                        'summary': summary,
+                        'csv_bridge': csv_bridge
+                    }
+                    
+                    st.success("✅ Transaction Services Complete!")
+                    st.rerun()
+                except Exception as e:
+                    import traceback
+                    st.session_state["last_error"] = traceback.format_exc()
+                    st.error(f"❌ Transaction Services Error: {e}")
+                    with st.expander("🔍 Error Details"):
+                        st.code(st.session_state["last_error"])
     
     with col2:
         st.subheader("📋 Results")
@@ -913,36 +1298,418 @@ with tab4:
 
 with tab5:
     st.header("📝 Notes & Feedback")
-    
-    feedback = st.text_area(
-        "Your notes",
-        height=200,
-        placeholder="Log your thoughts, ideas, or issues here..."
+
+    notes_file = os.path.join(project_root, "vault", "logs", "feedback.txt")
+    system_log_file = os.path.join(project_root, "vault", "logs", "system.log")
+
+    c1, c2, c3 = st.columns([2, 1, 1])
+    with c1:
+        feedback = st.text_area(
+            "Your notes",
+            height=180,
+            placeholder="Log your thoughts, ideas, or issues here...",
+            key="feedback_text"
+        )
+    with c2:
+        if st.button("💾 Save Note", use_container_width=True):
+            if not feedback.strip():
+                st.warning("내용을 입력해 주세요.")
+            else:
+                try:
+                    os.makedirs(os.path.dirname(notes_file), exist_ok=True)
+                    with open(notes_file, "a", encoding="utf-8") as f:
+                        f.write(f"\n[{datetime.now().isoformat()}] {st.session_state.get('company_name', 'Unknown')}\n")
+                        f.write(feedback.strip())
+                        f.write("\n" + "=" * 70 + "\n")
+
+                    _read_text_tail.clear()
+                    st.session_state["feedback_text"] = ""
+                    st.success("✅ Note saved")
+                except Exception as e:
+                    import traceback
+                    st.session_state["last_error"] = traceback.format_exc()
+                    st.error(f"❌ Save failed: {e}")
+                    with st.expander("🔍 Error Details"):
+                        st.code(st.session_state["last_error"])
+    with c3:
+        if st.button("🔄 Refresh View", use_container_width=True):
+            _read_text_tail.clear()
+            st.rerun()
+
+    st.divider()
+
+    col_a, col_b = st.columns([1, 1])
+    with col_a:
+        with st.expander("📖 View Recent Notes", expanded=True):
+            recent = _read_text_tail(notes_file, max_chars=8000)
+            if recent:
+                st.text(recent)
+            else:
+                st.info("No notes yet.")
+
+    with col_b:
+        with st.expander("🧾 System Log (tail)", expanded=True):
+            log_tail = _read_text_tail(system_log_file, max_chars=12000)
+            if log_tail:
+                st.text(log_tail)
+            else:
+                st.info("No system.log found (or empty).")
+
+        with st.expander("🚨 Error Console (Last Error)", expanded=False):
+            last_error = st.session_state.get("last_error")
+            if last_error:
+                st.code(last_error)
+            else:
+                st.caption("No captured errors in this session.")
+
+
+# ==============================================================================
+# TAB 6: DEAL PIPELINE (/run) - Web Orchestrator
+# ==============================================================================
+
+with tab6:
+    st.header("🚀 Deal Pipeline (/run)")
+    st.markdown("Zulu → X-RAY(LTM) → BRAVO → ALPHA를 웹에서 한번에 실행합니다.")
+
+    pipeline_query = st.text_input(
+        "Pipeline Target",
+        value=st.session_state.get("company_name", ""),
+        placeholder="e.g., Target_Co",
+        key="pipeline_query"
     )
-    
-    if st.button("💾 Save Note", use_container_width=True):
-        if feedback:
-            # Save to file
-            notes_file = os.path.join(project_root, 'vault', 'logs', 'feedback.txt')
-            os.makedirs(os.path.dirname(notes_file), exist_ok=True)
-            
-            with open(notes_file, 'a', encoding='utf-8') as f:
-                f.write(f"\n[{datetime.now().isoformat()}] {st.session_state.get('company_name', 'Unknown')}\n")
-                f.write(feedback)
-                f.write("\n" + "="*70 + "\n")
-            
-            st.success("✅ Note saved to vault/logs/feedback.txt")
-            st.balloons()
+
+    st.markdown("#### ⚙️ Pipeline Options")
+    opt1, opt2, opt3, opt4 = st.columns([1, 1, 1, 1])
+    with opt1:
+        include_wood_dcf = st.toggle(
+            "Include DCF (V2)",
+            value=True,
+            help="X-RAY 이후 WOOD V2 DCF를 자동 실행/재사용합니다.",
+            key="pipeline_include_wood"
+        )
+    with opt2:
+        include_wood_v3 = st.toggle(
+            "Include Live (V3)",
+            value=True,
+            help="Formula-linked Live Excel(WOOD V3)을 자동 생성/재사용합니다.",
+            key="pipeline_include_wood_v3"
+        )
+    with opt3:
+        reuse_existing_dcf = st.toggle(
+            "Reuse DCF",
+            value=True,
+            help="이미 DCF 탭에서 돌린 결과가 있으면 재사용합니다.",
+            key="pipeline_reuse_dcf"
+        )
+    with opt4:
+        reuse_existing_v3 = st.toggle(
+            "Reuse Live",
+            value=True,
+            help="이미 생성된 WOOD V3 Live가 있으면 재사용합니다.",
+            key="pipeline_reuse_v3"
+        )
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        run_pipeline = st.button("🚀 Run Full Pipeline", use_container_width=True, type="primary")
+    with col2:
+        st.caption("결과는 Teaser(스토리) + DCF(V2) + Live Excel(V3)까지 결합되어 ZIP 패키지로 다운로드 가능합니다.")
+
+    if run_pipeline:
+        missing = check_api_keys(require_openai=True, require_dart=False)
+        if missing:
+            st.error(f"❌ Missing API Keys: {', '.join(missing)}")
+        elif not pipeline_query.strip():
+            st.warning("타겟을 입력해 주세요.")
         else:
-            st.warning("Please write something")
-    
-    # Display recent notes
-    notes_file = os.path.join(project_root, 'vault', 'logs', 'feedback.txt')
-    if os.path.exists(notes_file):
-        with st.expander("📖 View Recent Notes"):
-            with open(notes_file, 'r', encoding='utf-8') as f:
-                recent = f.read()
-                st.text(recent[-2000:] if len(recent) > 2000 else recent)
+            try:
+                import traceback
+
+                zulu = get_zulu_scout()
+                if not zulu:
+                    st.error("ZuluScout 초기화 실패")
+                    st.stop()
+
+                with st.status("🚀 Running Pipeline...", expanded=True) as status:
+                    status.update(label="🚀 ZULU: Targeting...", state="running")
+                    leads = zulu.search_leads(pipeline_query.strip())
+                    if not leads:
+                        status.update(label="❌ ZULU: Target Not Found", state="error")
+                        st.stop()
+
+                    lead = leads[0]
+                    status.update(label=f"✅ ZULU: Found {lead.get('company_name', 'N/A')}", state="running")
+
+                    status.update(label="⚡ X-RAY: Analyzing financials (LTM)...", state="running")
+                    from src.agents.xray_val import XrayValuation
+                    xray = XrayValuation()
+                    xray_result = xray.run_valuation(lead)
+
+                    # Optional: WOOD DCF (V2) - auto-run or reuse
+                    dcf_info = None
+                    v3_live = None
+                    if include_wood_dcf:
+                        status.update(label="🌲 WOOD: Preparing DCF...", state="running")
+
+                        existing = st.session_state.get("dcf_result") if reuse_existing_dcf else None
+                        existing_ok = False
+                        if existing and isinstance(existing, dict):
+                            if existing.get("project_name") == (lead.get("company_name") or st.session_state.get("company_name")):
+                                existing_ok = True
+
+                        if existing_ok:
+                            status.update(label="🌲 WOOD: Reusing existing DCF result", state="running")
+                            dcf_info = (existing.get("dcf_info") or {}) if isinstance(existing, dict) else None
+                        else:
+                            status.update(label="🌲 WOOD: Running DCF (WOOD V2)...", state="running")
+                            orchestrator = get_wood_orchestrator(use_live_beta=use_live_beta)
+
+                            # Prefer X-RAY LTM revenue; fallback to collected_data if exists
+                            base_rev = (
+                                xray_result.get("financials", {}).get("revenue_bn")
+                                or st.session_state.get("collected_data", {}).get("revenue")
+                                or 0
+                            )
+                            data_source = xray_result.get("financials", {}).get("source") or "X-RAY LTM"
+
+                            filepath, summary = orchestrator.run_valuation(
+                                project_name=lead.get("company_name") or pipeline_query.strip(),
+                                base_revenue=float(base_rev),
+                                data_source=str(data_source),
+                            )
+
+                            dcf_info = _extract_dcf_info_from_wood_v2_summary(summary)
+                            st.session_state["dcf_result"] = {
+                                "filepath": filepath,
+                                "summary": summary,
+                                "timestamp": datetime.now().isoformat(),
+                                "engine": "WOOD_V2",
+                                "project_name": lead.get("company_name") or pipeline_query.strip(),
+                                "dcf_info": dcf_info,
+                            }
+                            status.update(label="✅ WOOD: DCF complete", state="running")
+
+                    # Optional: WOOD V3 Live Excel (Formula-Linked)
+                    if include_wood_v3:
+                        status.update(label="🧮 WOOD V3: Preparing Live Excel...", state="running")
+
+                        existing_live = st.session_state.get("dcf_v3_live") if reuse_existing_v3 else None
+                        live_ok = False
+                        if existing_live and isinstance(existing_live, dict):
+                            if existing_live.get("project_name") == (lead.get("company_name") or st.session_state.get("company_name")):
+                                live_ok = True
+
+                        if live_ok:
+                            status.update(label="🧮 WOOD V3: Reusing existing Live model", state="running")
+                            v3_live = existing_live
+                        else:
+                            status.update(label="🧮 WOOD V3: Building Live model (Formula-Linked)...", state="running")
+                            from src.engines.wood.exporter_v3 import LiveExcelBuilder
+
+                            # Scenario inputs: reuse DCF tab inputs if present; else use defaults
+                            bg = _safe_float(st.session_state.get("base_growth", 0.10), 0.10)
+                            bm = _safe_float(st.session_state.get("base_margin", 0.15), 0.15)
+                            bulg = _safe_float(st.session_state.get("bull_growth", 0.15), 0.15)
+                            bulm = _safe_float(st.session_state.get("bull_margin", 0.20), 0.20)
+                            beg = _safe_float(st.session_state.get("bear_growth", 0.05), 0.05)
+                            bem = _safe_float(st.session_state.get("bear_margin", 0.08), 0.08)
+
+                            base_rev_for_v3 = (
+                                xray_result.get("financials", {}).get("revenue_bn")
+                                or st.session_state.get("collected_data", {}).get("revenue")
+                                or 0
+                            )
+
+                            assumptions = {
+                                "tax_rate": 0.22,
+                                "terminal_growth": _safe_float(terminal_growth, 1.5) / 100.0,
+                                "projection_years": int(projection_years),
+                                # WACC inputs (editable in Excel)
+                                "risk_free_rate": 0.035,
+                                "market_risk_premium": 0.08,
+                                "beta": 1.0,
+                                "cost_of_debt": 0.045,
+                            }
+
+                            scenarios = {
+                                "Base": {"revenue_growth": float(bg), "ebit_margin": float(bm)},
+                                "Bull": {"revenue_growth": float(bulg), "ebit_margin": float(bulm)},
+                                "Bear": {"revenue_growth": float(beg), "ebit_margin": float(bem)},
+                            }
+
+                            historical_data = None
+                            if "historical_data" in st.session_state:
+                                try:
+                                    df_hist = st.session_state["historical_data"]
+                                    if isinstance(df_hist, pd.DataFrame):
+                                        historical_data = {"raw": df_hist.to_dict(orient="list")}
+                                except Exception:
+                                    historical_data = None
+
+                            reports_dir = os.path.join(project_root, "vault", "reports")
+                            os.makedirs(reports_dir, exist_ok=True)
+                            pname = lead.get("company_name") or pipeline_query.strip()
+                            filename = f"{pname}_DCF_WOOD_V3_LIVE_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                            filepath = os.path.join(reports_dir, filename)
+
+                            builder = LiveExcelBuilder(filepath)
+                            builder.build(
+                                project_name=pname,
+                                base_revenue=float(base_rev_for_v3),
+                                assumptions=assumptions,
+                                scenarios=scenarios,
+                                historical_data=historical_data,
+                            )
+
+                            with open(filepath, "rb") as f:
+                                excel_bytes = f.read()
+
+                            v3_live = {
+                                "filepath": filepath,
+                                "filename": filename,
+                                "bytes": excel_bytes,
+                                "timestamp": datetime.now().isoformat(),
+                                "engine": "WOOD_V3_LIVE",
+                                "project_name": pname,
+                            }
+                            st.session_state["dcf_v3_live"] = v3_live
+                            status.update(label="✅ WOOD V3: Live model built", state="running")
+
+                    status.update(label="🤝 BRAVO: Matching buyers...", state="running")
+                    from src.agents.bravo_matchmaker import BravoMatchmaker
+                    bravo = BravoMatchmaker()
+
+                    target_info = {
+                        "company_name": lead.get("company_name"),
+                        "sector": lead.get("sector"),
+                        "summary": lead.get("summary"),
+                        "revenue": (xray_result.get("financials", {}).get("revenue_bn") or 0),
+                    }
+                    buyers = bravo.find_buyers(target_info=target_info, valuation_info=xray_result.get("valuation"))
+
+                    # Normalize buyer objects to dicts for display
+                    buyer_dicts = []
+                    for b in buyers or []:
+                        if hasattr(b, "dict"):
+                            buyer_dicts.append(b.dict())
+                        elif isinstance(b, dict):
+                            buyer_dicts.append(b)
+                        else:
+                            buyer_dicts.append({"name": str(b)})
+
+                    status.update(label="🖋️ ALPHA: Writing teaser...", state="running")
+                    from src.agents.alpha_vp import AlphaChief
+                    alpha = AlphaChief()
+                    teaser_md = alpha.generate_report(
+                        target={"company_name": lead.get("company_name"), "sector": lead.get("sector"), "summary": lead.get("summary")},
+                        financials=xray_result.get("financials", {}),
+                        valuation=xray_result.get("valuation", {}),
+                        buyers=buyer_dicts,
+                        dcf_info=dcf_info or (st.session_state.get("dcf_result", {}) if isinstance(st.session_state.get("dcf_result"), dict) else None) or None,
+                    )
+
+                    st.session_state["pipeline_result"] = {
+                        "lead": lead,
+                        "xray": xray_result,
+                        "buyers": buyer_dicts,
+                        "teaser": teaser_md,
+                        "dcf": st.session_state.get("dcf_result") if include_wood_dcf else None,
+                        "live_v3": v3_live if include_wood_v3 else None,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+
+                    status.update(label="✅ Pipeline Complete", state="complete")
+                    st.success("✅ Full pipeline completed")
+                    st.rerun()
+
+            except Exception as e:
+                st.session_state["last_error"] = traceback.format_exc()
+                st.error(f"❌ Pipeline Error: {e}")
+                with st.expander("🔍 Error Details"):
+                    st.code(st.session_state["last_error"])
+
+    if "pipeline_result" in st.session_state:
+        res = st.session_state["pipeline_result"]
+        st.divider()
+
+        # DCF snapshot (numbers + download) if available
+        dcf_res = res.get("dcf") or st.session_state.get("dcf_result")
+        if dcf_res and isinstance(dcf_res, dict):
+            dcf_info = dcf_res.get("dcf_info") or {}
+            if dcf_info:
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.metric("EV (Base)", f"{dcf_info.get('ev_base', 0):,.0f}억" if dcf_info.get("ev_base") else "N/A")
+                with c2:
+                    st.metric("EV (Min)", f"{dcf_info.get('ev_min', 0):,.0f}억" if dcf_info.get("ev_min") else "N/A")
+                with c3:
+                    st.metric("EV (Max)", f"{dcf_info.get('ev_max', 0):,.0f}억" if dcf_info.get("ev_max") else "N/A")
+                with c4:
+                    st.metric("WACC", f"{dcf_info.get('wacc', 0):.2f}%" if dcf_info.get("wacc") else "N/A")
+
+            with st.expander("🌲 WOOD DCF Summary (raw)"):
+                st.markdown(dcf_res.get("summary", ""))
+
+            if dcf_res.get("filepath") and os.path.exists(dcf_res["filepath"]):
+                with open(dcf_res["filepath"], "rb") as f:
+                    excel_bytes = f.read()
+                st.download_button(
+                    label="📥 Download DCF Excel (WOOD V2)",
+                    data=excel_bytes,
+                    file_name=os.path.basename(dcf_res["filepath"]),
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+
+        # Live model (WOOD V3) download if available
+        live_res = res.get("live_v3") or st.session_state.get("dcf_v3_live")
+        if live_res and isinstance(live_res, dict) and live_res.get("bytes"):
+            st.divider()
+            st.subheader("🧮 WOOD V3 Live Model (Formula-Linked)")
+            st.caption("Assumptions 시트 입력(블루) 변경 시, Summary/DCF가 자동 업데이트됩니다.")
+            st.download_button(
+                label="📥 Download Live Excel (WOOD V3)",
+                data=live_res["bytes"],
+                file_name=live_res.get("filename") or "WOOD_V3_LIVE.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+
+        # One-click package (ZIP: Teaser + DCF(V2) + Live(V3))
+        st.divider()
+        st.subheader("📦 One-click Package (ZIP)")
+        zip_name = f"{(res.get('lead', {}).get('company_name') or 'Deal')}_Package_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            teaser_text = res.get("teaser", "")
+            zf.writestr("01_Teaser.md", teaser_text.encode("utf-8"))
+
+            if dcf_res and isinstance(dcf_res, dict) and dcf_res.get("filepath") and os.path.exists(dcf_res["filepath"]):
+                zf.write(dcf_res["filepath"], arcname=f"02_DCF_WOOD_V2_{os.path.basename(dcf_res['filepath'])}")
+
+            if live_res and isinstance(live_res, dict) and live_res.get("bytes"):
+                zf.writestr(f"03_DCF_WOOD_V3_LIVE_{live_res.get('filename','WOOD_V3_LIVE.xlsx')}", live_res["bytes"])
+
+        zip_buffer.seek(0)
+        st.download_button(
+            label="⬇️ Download Full Package (ZIP)",
+            data=zip_buffer.getvalue(),
+            file_name=zip_name,
+            mime="application/zip",
+            use_container_width=True,
+            type="primary"
+        )
+
+        st.subheader("🧾 ALPHA Teaser (Markdown)")
+        st.markdown(res.get("teaser", ""))
+
+        st.download_button(
+            label="📄 Download Teaser (Markdown)",
+            data=res.get("teaser", ""),
+            file_name=f"{(res.get('lead', {}).get('company_name') or 'Teaser')}_Teaser.md",
+            mime="text/markdown",
+            use_container_width=True
+        )
 
 # ==============================================================================
 # FOOTER
