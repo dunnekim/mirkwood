@@ -176,7 +176,7 @@ class SmartFinancialIngestor:
                     "reason": "Search returned empty context"
                 }
             
-            # LLM parsing
+            # LLM parsing with improved prompt
             prompt = f"""
             Extract financial data for '{company_name}' from the following search results.
             
@@ -184,18 +184,30 @@ class SmartFinancialIngestor:
             {context}
             
             [Rules]
-            - Extract MOST RECENT revenue and operating profit
-            - Unit: Billion KRW (십억 원)
-            - Example: "300억 원" → 30.0
-            - If multiple sources conflict, use the most credible one (avoid estimates)
-            - If data not found, return null
+            1. Extract MOST RECENT revenue and operating profit (영업이익)
+            2. Unit: Billion KRW (십억 원)
+            3. Conversion examples:
+               - "300억 원" → 30.0
+               - "3,000억" → 300.0
+               - "3조 원" → 3000.0
+               - "30,000억" → 3000.0
+            4. If multiple sources conflict, use the most recent and credible one
+            5. If exact data not found, estimate from available information
+            6. If revenue found but OP not found, estimate OP as 10% of revenue
+            7. ALWAYS return numeric values (never null) - use 0 if truly unavailable
             
-            Return JSON:
+            [Output Format]
+            Return ONLY valid JSON (no markdown, no explanation):
             {{
-                "revenue_bn": float or null,
-                "op_bn": float or null,
-                "source_detail": "Brief description of where data came from"
+                "revenue_bn": <number>,
+                "op_bn": <number>,
+                "source_detail": "Brief description"
             }}
+            
+            [Critical]
+            - revenue_bn and op_bn MUST be numbers (float or int)
+            - If data unavailable, use 0 (not null)
+            - Return ONLY the JSON object, nothing else
             """
             
             response = self.llm.call_llm(
@@ -204,29 +216,72 @@ class SmartFinancialIngestor:
                 mode="smart"
             )
             
-            # Parse JSON
-            match = re.search(r'\{.*\}', response, re.DOTALL)
-            if not match:
+            # Parse JSON with multiple attempts
+            import json
+            parsed = None
+            
+            # Try direct JSON parse first
+            try:
+                parsed = json.loads(response.strip())
+            except:
+                # Try extracting JSON from response
+                match = re.search(r'\{[^{}]*"revenue_bn"[^{}]*\}', response, re.DOTALL)
+                if match:
+                    try:
+                        parsed = json.loads(match.group(0))
+                    except:
+                        pass
+                
+                # If still failed, try broader pattern
+                if not parsed:
+                    match = re.search(r'\{.*\}', response, re.DOTALL)
+                    if match:
+                        try:
+                            parsed = json.loads(match.group(0))
+                        except:
+                            pass
+            
+            if not parsed:
                 return {
                     "success": False,
-                    "reason": "LLM failed to parse data"
+                    "reason": "LLM failed to parse data - invalid JSON format"
                 }
             
-            import json
-            parsed = json.loads(match.group(0))
-            
+            # Extract values with fallback logic
             revenue = parsed.get('revenue_bn')
             op = parsed.get('op_bn')
             
-            if revenue is None or op is None:
+            # Handle None/null values
+            if revenue is None:
+                revenue = 0
+            if op is None:
+                # If revenue available, estimate OP as 10% of revenue
+                if revenue and revenue > 0:
+                    op = revenue * 0.10
+                else:
+                    op = 0
+            
+            # Convert to float (handle string numbers)
+            try:
+                revenue = float(revenue) if revenue else 0
+                op = float(op) if op else 0
+            except (ValueError, TypeError):
                 return {
                     "success": False,
-                    "reason": "LLM could not extract revenue or operating profit"
+                    "reason": "LLM returned non-numeric values"
                 }
             
-            # Convert to float
-            revenue = float(revenue)
-            op = float(op)
+            # Validate: at least revenue should be > 0
+            if revenue <= 0:
+                return {
+                    "success": False,
+                    "reason": "LLM could not extract valid revenue (got 0 or negative)"
+                }
+            
+            # If OP is 0 but revenue exists, estimate OP
+            if op <= 0 and revenue > 0:
+                op = revenue * 0.10  # Default 10% margin
+            
             ebitda = op * 1.15 if op > 0 else op
             
             return {

@@ -26,6 +26,11 @@ class DartReader:
         self.api_key = os.getenv("DART_API_KEY")
         if not self.api_key:
             print("⚠️ DART_API_KEY is missing. Please check .env file")
+            print("   DART features will be disabled.")
+        else:
+            # API 키가 있으면 간단히 검증 (길이 체크)
+            if len(self.api_key) < 20:
+                print("⚠️ DART_API_KEY seems invalid (too short). Please check .env file")
         
         # [핵심 1] 동의어 사전 (Synonyms Dictionary)
         # 업종별로 매출/이익을 부르는 이름이 다름을 처리
@@ -46,10 +51,20 @@ class DartReader:
         """
         기업명 → 고유번호(corp_code) 변환
         
+        [Improvement]
+        - 정확 일치 우선
+        - 부분 매칭 (포함 검색)
+        - 괄호/주식회사 등 제거 후 비교
+        
         [Note]
         corpCode.xml을 매번 다운받으면 느리므로 로컬 캐싱 권장
         """
         xml_file = 'corp_code.xml'
+        
+        # API 키 확인
+        if not self.api_key:
+            print("   ❌ DART_API_KEY is missing. Cannot search DART.")
+            return None
         
         # XML 파일이 없으면 다운로드
         if not os.path.exists(xml_file):
@@ -58,16 +73,38 @@ class DartReader:
             try:
                 print("   📥 Downloading corp_code.xml from DART...")
                 resp = requests.get(url, params=params, timeout=10)
+                if resp.status_code != 200:
+                    print(f"   ❌ DART API Error: HTTP {resp.status_code}")
+                    if resp.status_code == 401:
+                        print("      Hint: Check if DART_API_KEY is valid")
+                    return None
                 with open(xml_file, 'wb') as f:
                     f.write(resp.content)
+                print("   ✅ Downloaded corp_code.xml")
             except Exception as e:
                 print(f"   ❌ Failed to download corp_code.xml: {e}")
                 return None
+        
+        # 입력 기업명 정규화 (괄호, 주식회사 등 제거)
+        def normalize_name(name):
+            """기업명 정규화"""
+            if not name:
+                return ""
+            # 괄호 내용 제거: "삼성전자(주)" → "삼성전자"
+            import re
+            name = re.sub(r'\([^)]*\)', '', name)
+            # 주식회사, (주) 등 제거
+            name = name.replace('주식회사', '').replace('(주)', '').replace('(유)', '').strip()
+            return name
+        
+        normalized_input = normalize_name(company_name)
         
         # XML 파싱
         try:
             tree = ET.parse(xml_file)
             root = tree.getroot()
+            
+            # 1차: 정확 일치
             for child in root.findall('list'):
                 nm = child.find('corp_name')
                 if nm is not None and nm.text:
@@ -75,10 +112,46 @@ class DartReader:
                     if corp_name == company_name:
                         code = child.find('corp_code')
                         if code is not None and code.text:
+                            print(f"   ✅ Exact match found: '{corp_name}'")
                             return code.text.strip()
+            
+            # 2차: 정규화 후 일치
+            for child in root.findall('list'):
+                nm = child.find('corp_name')
+                if nm is not None and nm.text:
+                    corp_name = nm.text.strip()
+                    normalized_corp = normalize_name(corp_name)
+                    if normalized_corp == normalized_input and normalized_input:
+                        code = child.find('corp_code')
+                        if code is not None and code.text:
+                            print(f"   ✅ Normalized match found: '{corp_name}' (input: '{company_name}')")
+                            return code.text.strip()
+            
+            # 3차: 부분 포함 검색 (입력이 회사명에 포함되거나 그 반대)
+            for child in root.findall('list'):
+                nm = child.find('corp_name')
+                if nm is not None and nm.text:
+                    corp_name = nm.text.strip()
+                    normalized_corp = normalize_name(corp_name)
+                    
+                    # 양방향 포함 검색
+                    if normalized_input and normalized_corp:
+                        if normalized_input in normalized_corp or normalized_corp in normalized_input:
+                            # 최소 길이 체크 (너무 짧은 매칭 방지)
+                            min_len = min(len(normalized_input), len(normalized_corp))
+                            if min_len >= 2:  # 최소 2글자 이상
+                                code = child.find('corp_code')
+                                if code is not None and code.text:
+                                    print(f"   ⚠️ Partial match found: '{corp_name}' (input: '{company_name}')")
+                                    return code.text.strip()
+            
         except Exception as e:
             print(f"   ❌ Error parsing corp_code.xml: {e}")
+            import traceback
+            traceback.print_exc()
         
+        print(f"   ❌ No matching company found in DART for '{company_name}'")
+        print(f"      Hint: Try using exact legal name (e.g., '삼성전자(주)')")
         return None
     
     def _find_value_by_keys(self, row_dict, keys):
@@ -128,10 +201,16 @@ class DartReader:
                 "source": str
             } or None
         """
+        # API 키 확인
+        if not self.api_key:
+            print(f"   ❌ DART: API key not configured")
+            return None
+        
         corp_code = self._get_corp_code(company_name)
         if not corp_code:
             print(f"   ❌ DART: Corp code not found for '{company_name}'")
-            print(f"      Hint: Check if company name is exact match (e.g., '삼성전자' not '삼성')")
+            print(f"      Hint: Company may not be listed or name mismatch")
+            print(f"      Try: Use exact legal name from DART website")
             return None
         
         # [핵심 2] 최신 보고서 찾기 (역순 검색)
@@ -164,9 +243,34 @@ class DartReader:
                 }
                 
                 try:
-                    res = requests.get(url, params=params, timeout=10).json()
+                    response = requests.get(url, params=params, timeout=10)
                     
-                    if res.get('status') == '000' and res.get('list'):
+                    # HTTP 에러 체크
+                    if response.status_code != 200:
+                        if response.status_code == 401:
+                            print(f"   ❌ DART API Authentication Error (401)")
+                            print(f"      Hint: Check if DART_API_KEY is valid")
+                            return None
+                        continue  # 다음 보고서 시도
+                    
+                    res = response.json()
+                    
+                    # API 응답 상태 체크
+                    status = res.get('status')
+                    if status != '000':
+                        error_msg = res.get('message', 'Unknown error')
+                        if status == '013':
+                            # 해당 보고서 없음 - 정상 (다음 보고서 시도)
+                            continue
+                        elif status == '800' or status == '900':
+                            print(f"   ❌ DART API Error: {error_msg} (Status: {status})")
+                            if status == '800':
+                                print(f"      Hint: API key may be invalid or expired")
+                            return None
+                        # 기타 에러는 무시하고 다음 시도
+                        continue
+                    
+                    if res.get('list'):
                         # 데이터 찾음!
                         data_list = res['list']
                         
