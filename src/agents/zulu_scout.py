@@ -55,6 +55,14 @@ class ZuluScout:
 
     def _execute_search(self, query, timelimit, mode, original_query):
         leads = []
+        # If the user's query contains a blacklist token (e.g., "은행"),
+        # don't filter it out. This prevents false Target Not Found for banks.
+        effective_blacklist = []
+        oq = (original_query or "")
+        for bad in self.blacklist:
+            if bad and bad in oq:
+                continue
+            effective_blacklist.append(bad)
         try:
             with DDGS() as ddgs:
                 results = ddgs.news(query, region='kr-kr', timelimit=timelimit, max_results=5)
@@ -94,7 +102,7 @@ class ZuluScout:
                             continue
 
                         if name.upper() in ["N/A", "UNKNOWN"]: continue
-                        if any(bad in name for bad in self.blacklist): continue
+                        if any(bad in name for bad in effective_blacklist): continue
                         
                         data['url'] = res.get('url')
                         leads.append(data)

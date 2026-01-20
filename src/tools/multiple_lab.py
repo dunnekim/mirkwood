@@ -77,7 +77,11 @@ class MultipleLab:
 
     def _map_sector(self, sector_str: str) -> SectorType:
         s = str(sector_str).upper()
+        # Generic finance label normalization
+        if "FINANCE" in s or "금융" in s:
+            return SectorType.BANK
         if "BANK" in s or "은행" in s: return SectorType.BANK
+        if "저축은행" in s: return SectorType.BANK
         if "CAPITAL" in s or "CARD" in s or "증권" in s or "투자" in s: return SectorType.CAPITAL
         if "INSUR" in s or "LIFE" in s or "보험" in s: return SectorType.INSURANCE
         if "GAME" in s or "게임" in s: return SectorType.GAME

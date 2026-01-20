@@ -14,7 +14,17 @@ sys.path.append(project_root)
 # [Libraries]
 from telegram import Update, BotCommand
 from telegram.constants import ParseMode, ChatAction
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+from telegram.error import BadRequest
+from telegram.helpers import escape_markdown
+from telegram.ext import (
+    ApplicationBuilder,
+    ContextTypes,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ConversationHandler,
+    CallbackQueryHandler,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler 
 from dotenv import load_dotenv
 
@@ -24,6 +34,7 @@ from src.agents.xray_val import XrayValuation
 from src.agents.bravo_matchmaker import BravoMatchmaker
 from src.agents.alpha_chief import AlphaChief
 from src.utils.llm_handler import LLMHandler
+from src.agents.structuring_agent import StructuringAgent
 
 # [Engines]
 # from src.engines.orchestrator import WoodOrchestrator  # WOOD V1 DCF Engine (Legacy - Preserved)
@@ -37,6 +48,65 @@ ALLOWED_IDS = os.getenv("TELEGRAM_CHAT_ID", "").split(",")
 # [Logging]
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _chunk_text(text: str, limit: int = 3500):
+    """Telegram safety: split long text into chunks under message size limits."""
+    if not text:
+        return []
+    chunks = []
+    buf = ""
+    for line in text.splitlines(True):
+        if len(buf) + len(line) > limit:
+            chunks.append(buf)
+            buf = ""
+        buf += line
+    if buf:
+        chunks.append(buf)
+    return chunks
+
+
+async def _safe_send_teaser(update: Update, teaser_text: str, filename_prefix: str = "Teaser"):
+    """
+    Robust teaser delivery:
+    1) Try Markdown
+    2) Try MarkdownV2 (escaped) + chunking
+    3) Fallback: send as .md document
+    4) Fallback: plain text chunking
+    """
+    if not teaser_text:
+        await update.message.reply_text("⚠️ Teaser is empty.")
+        return
+
+    # 1) Markdown
+    try:
+        await update.message.reply_text(teaser_text, parse_mode=ParseMode.MARKDOWN)
+        return
+    except BadRequest as e:
+        logger.warning(f"Teaser Markdown send failed: {e}")
+
+    # 2) MarkdownV2 with escaping
+    try:
+        escaped = escape_markdown(teaser_text, version=2)
+        for chunk in _chunk_text(escaped, limit=3500):
+            await update.message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN_V2)
+        return
+    except Exception as e:
+        logger.warning(f"Teaser MarkdownV2 send failed: {e}")
+
+    # 3) Send as file
+    try:
+        from io import BytesIO
+        bio = BytesIO(teaser_text.encode("utf-8"))
+        bio.name = f"{filename_prefix}.md"
+        await update.message.reply_document(document=bio, caption="📄 Teaser Memo (Markdown file)")
+        return
+    except Exception as e:
+        logger.warning(f"Teaser document send failed: {e}")
+
+    # 4) Plain chunks
+    for chunk in _chunk_text(teaser_text, limit=3500):
+        await update.message.reply_text(chunk)
 
 # ==============================================================================
 # 🧠 Session Manager (Multi-Session Support)
@@ -82,8 +152,15 @@ async def agent_chat_response(agent_name, user_input, session):
         val = session.data['valuation']['valuation']
         ctx_str += f"- Quick Val: {val['target_value']}Bn KRW (Method: {val['method']})\n"
     if session.data['buyers']:
-        buyers = [b['buyer_name'] for b in session.data['buyers']]
-        ctx_str += f"- Buyers: {', '.join(buyers)}\n"
+        buyer_names = []
+        for b in session.data['buyers']:
+            if isinstance(b, dict):
+                buyer_names.append(b.get("name") or b.get("buyer_name") or "Unknown")
+            elif hasattr(b, "name"):
+                buyer_names.append(getattr(b, "name"))
+            else:
+                buyer_names.append(str(b))
+        ctx_str += f"- Buyers: {', '.join(buyer_names)}\n"
 
     system_prompt = f"""
     You are {agent_name}, a partner at MIRKWOOD Partners.
@@ -115,11 +192,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 **2. 🛠️ Professional Tools**
 `/dcf [프로젝트명] [매출액]` : 시나리오 DCF 분석 및 엑셀 생성 (WOOD Engine)
-`/struct` : 메자닌/구조화 설계 도구 (Phase 4)
+`/struct` : 구조화 시뮬레이션 (Lite / 3-step, 표준 가정 모드)
+`/struct_legacy` : 기존 OPM(단발성) 커맨드
 
 **3. ⚙️ Controls**
 `잠깐`, `중단` : 프로세스 강제 종료
 `@X-RAY [질문]` : 에이전트와 대화
+`@ALPHA [질문]` : ALPHA에게 후속 질문
 `/id` : 현재 채팅방 ID 확인
     """
     await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
@@ -187,7 +266,7 @@ async def run_pipeline(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if session.stop_flag: raise InterruptedError()
         alpha = AlphaChief()
         teaser = await loop.run_in_executor(None, alpha.generate_teaser, target, val_result, buyers)
-        await update.message.reply_text(teaser)
+        await _safe_send_teaser(update, teaser, filename_prefix=target.get("company_name", "Teaser"))
 
     except InterruptedError:
         await update.message.reply_text("🛑 프로세스 중단됨.")
@@ -452,6 +531,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
             response = await agent_chat_response(agent_name, text, session)
             await update.message.reply_text(f"🗣️ **{agent_name}**: {response}")
+            return
 
 # ==============================================================================
 # ⏰ Scheduler & Lifecycle
@@ -500,12 +580,32 @@ if __name__ == '__main__':
         exit()
     
     app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
+
+    # --------------------------------------------------------------------------
+    # 🏗️ Structuring Agent (Lite Conversation) - overrides `/struct`
+    # --------------------------------------------------------------------------
+    struct_bot = StructuringAgent()
+    struct_handler = ConversationHandler(
+        entry_points=[CommandHandler("struct", struct_bot.start)],
+        states={
+            struct_bot.TYPE: [CallbackQueryHandler(struct_bot.receive_type, pattern=r"^TYPE:")],
+            struct_bot.PRICE_SHARES: [MessageHandler(filters.TEXT & (~filters.COMMAND), struct_bot.receive_price_shares)],
+            struct_bot.AMOUNT: [MessageHandler(filters.TEXT & (~filters.COMMAND), struct_bot.receive_amount)],
+            struct_bot.VOL_CHECK: [CallbackQueryHandler(struct_bot.receive_vol_check, pattern=r"^VOL:")],
+            struct_bot.CUSTOM_VOL: [MessageHandler(filters.TEXT & (~filters.COMMAND), struct_bot.receive_custom_vol)],
+        },
+        fallbacks=[CommandHandler("cancel", struct_bot.cancel)],
+        name="structuring_agent_lite",
+        persistent=False,
+    )
     
     app.add_handler(CommandHandler("run", run_pipeline))
     app.add_handler(CommandHandler("dcf", run_dcf))
-    app.add_handler(CommandHandler("struct", run_struct))
+    # Legacy OPM command preserved
+    app.add_handler(CommandHandler("struct_legacy", run_struct))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_text))
+    app.add_handler(struct_handler)
     
     print("=== 🌲 MIRKWOOD AI Lab Server Running ===")
     app.run_polling()
